@@ -16,7 +16,10 @@ class WP_Experience_API_Admin {
 		'wpxapi_network_lrs_url' => '',
 		'wpxapi_network_lrs_username' => '',
 		'wpxapi_network_lrs_password' => '',
+		'wpxapi_network_lrs_admin' => '',
 		'wpxapi_network_lrs_guest' => '',
+		'wpxapi_network_lrs_whitelist' => '',
+		'wpxapi_network_lrs_user_setting' => '2',
 	);
 
 	//need this for sanitization, cause default is to not save checkbox value if not checked!  I want it to be 0 of not checked.
@@ -439,6 +442,9 @@ class WP_Experience_API_Admin {
 
 $experience_api_admin = new WP_Experience_API_Admin();
 
+//==========***********----------------*************===========//
+								//===== New Class ======//
+////==========***********----------------*************===========//
 class WP_Experience_API_Network_Admin {
 
 	//options so that we only call it once instead of each time we need it
@@ -452,8 +458,14 @@ class WP_Experience_API_Network_Admin {
 		'wpxapi_network_lrs_admin' => '',
 		'wpxapi_network_lrs_guest' => '',
 		'wpxapi_network_lrs_whitelist' => '',
+		'wpxapi_network_lrs_user_setting' => '2',
 	);
 
+	//options to determine how to id a user in xAPI statement
+	private static $user_setting_options = array(
+		'1' => 'Account',
+		'2' => 'Email',
+	);
 	/**
 	 * Constructor
 	 */
@@ -552,6 +564,13 @@ class WP_Experience_API_Network_Admin {
 			'wpxapi_settings_section_lrs'
 		);
 		add_settings_field(
+			'wpxapi_network_lrs_user_setting',
+			__( 'LRS Actor Setting', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_user_setting_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_section_lrs'
+		);
+		add_settings_field(
 			'wpxapi_network_lrs_site_admin',
 			__( 'Users that can set site level LRS', 'wpxapi' ),
 			array( $this, 'wp_xapi_network_lrs_admin_render' ),
@@ -604,6 +623,23 @@ class WP_Experience_API_Network_Admin {
 	public function wp_xapi_network_lrs_password_render() {
 		?>
 			<input type='text' name='wpxapi_network_settings[wpxapi_network_lrs_password]' value='<?php echo esc_attr( $this->options['wpxapi_network_lrs_password'] ); ?>'>
+		<?php
+	}
+
+	/**
+	 * Creates the method by which users are identified.
+	 *
+	 * @return void
+	 */
+	public function wp_xapi_network_lrs_user_setting_render() {
+		?>
+		<select name='wpxapi_network_settings[wpxapi_network_lrs_user_setting]'>
+		<?php
+		foreach ( WP_Experience_API_Network_Admin::$user_setting_options as $key => $value ) {
+			echo "<option value='" . esc_attr( $key ) . "' " . selected( $this->options['wpxapi_network_lrs_user_setting'], $key ) . '>' . esc_html( $value ) . '</option>';
+		}
+		?>
+		</select>
 		<?php
 	}
 

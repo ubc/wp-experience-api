@@ -63,8 +63,10 @@ class WP_Experience_API {
 			require_once( ABSPATH . '/wp-admin/includes/plugin.php' );
 		}
 
+		//get options
+		WP_Experience_API::$options = get_option( 'wpxapi_settings' );
+		self::$site_options = get_site_option( 'wpxapi_network_settings' );
 		if ( ( is_multisite() && is_plugin_active_for_network( 'wp-experience-api/wp-experience-api.php' ) ) || defined( 'WP_XAPI_MU_MODE' ) ) {
-			self::$site_options = get_site_option( 'wpxapi_network_settings' );
 			if ( ! empty( self::$site_options ) || ! empty( self::$site_options['wpxapi_network_lrs_password'] ) && ! empty( self::$site_options['wpxapi_network_lrs_username'] ) && ! empty( self::$site_options['wpxapi_network_lrs_url'] ) ) {
 
 				self::$lrs1 = new TinCan\RemoteLRS(
@@ -74,16 +76,16 @@ class WP_Experience_API {
 					self::$site_options['wpxapi_network_lrs_password']
 				);
 			} else {
-				//use defaults from wp-experience-api-configs.php
-				self::$lrs1 = new TinCan\RemoteLRS(
-					WP_XAPI_DEFAULT_PRIMARY_LRS_URL,
-					WP_XAPI_DEFAULT_XAPI_VERSION,
-					WP_XAPI_DEFAULT_PRIMARY_LRS_USERNAME,
-					WP_XAPI_DEFAULT_PRIMARY_LRS_PASSWORD
-				);
 				add_action( 'admin_notices', array( 'WP_Experience_API', 'config_unset_notice' ) );
-
 				error_log( 'Please tell Network Administrator to set the default username/password/URL of the LRS (for plugin: WP ExperienceA API)' );
+			}
+		} else {
+			if ( ! is_multisite() &&
+					 ( empty( WP_Experience_API::$options['wpxapi_lrs_url'] ) ||
+					   empty( WP_Experience_API::$options['wpxapi_lrs_username'] ) ||
+					   empty( WP_Experience_API::$options['wpxapi_lrs_password'] ) ) ) {
+				add_action( 'admin_notices', array( 'WP_Experience_API', 'config_unset_local_notice' ) );
+				error_log( 'Please tell the Site Administrator to set the username/password/URL of the LRS (for plugin: WP ExperienceA API)' );
 			}
 		}
 
@@ -92,9 +94,12 @@ class WP_Experience_API {
 		}
 
 		require_once( plugin_dir_path( __FILE__ ).'includes/triggers.php' );
+
+		//this is where you can register more stuff (aka link filters to statements) programmatically via filters
+		do_action( 'wpxapi_add_registers' );
+
 		add_action( 'init', array( __CLASS__, 'load' ) );
 
-		WP_Experience_API::$options = get_option( 'wpxapi_settings' );
 	}
 
 	/**
@@ -216,8 +221,9 @@ class WP_Experience_API {
 		}
 
 		if ( ( is_multisite() && is_plugin_active_for_network( 'wp-experience-api/wp-experience-api.php' ) ) || defined( 'WP_XAPI_MU_MODE' ) ) {
-			$response = self::$lrs1->saveStatement( $data );
-			//error_log('response:');error_log( print_r( $response, true ) );
+			if ( ! empty( self::$lrs1 ) ) {
+				$response = self::$lrs1->saveStatement( $data );
+			}
 		}
 
 		if ( ! empty( WP_Experience_API::$options['wpxapi_lrs_url'] ) && ! empty( WP_Experience_API::$options['wpxapi_lrs_username'] ) && ! empty( WP_Experience_API::$options['wpxapi_lrs_password'] ) ) {
@@ -251,22 +257,35 @@ class WP_Experience_API {
 			$user_data = get_userdata( $data['user'] );
 
 			if ( false !== $user_data ) {
-				$unique_id = apply_filters( 'wpxapi_actor_account_name', get_user_meta( $user_data->ID, WP_XAPI_DEFAULT_ACTOR_ACCOUNT_NAME, true ) );
+				//now we pull the account/email option!
+				if ( ! empty( self::$site_options['wpxapi_network_lrs_user_setting'] ) && 2 == self::$site_options['wpxapi_network_lrs_user_setting'] ) {
+					//if email
+					$actor = new TinCan\Agent(
+						[
+							'objectType' => 'Agent',
+							'name' => $user_data->display_name,
+							'mbox' => 'mailto:' . $user_data->user_email,
+						]
+					);
+				} else {
+					//if account
+					$unique_id = apply_filters( 'wpxapi_actor_account_name', get_user_meta( $user_data->ID, WP_XAPI_DEFAULT_ACTOR_ACCOUNT_NAME, true ) );
 
-				if ( empty( $unique_id ) ) {
-					return;
+					if ( empty( $unique_id ) ) {
+						return;
+					}
+
+					$actor = new TinCan\Agent(
+						[
+							'objectType' => 'Agent',
+							'name' => $user_data->display_name,
+							'account' => [
+								'homePage' => apply_filters( 'wpxapi_actor_account_homepage', WP_XAPI_DEFAULT_ACTOR_ACCOUNT_HOMEPAGE ),
+								'name' => $unique_id,
+							],
+						]
+					);
 				}
-
-				$actor = new TinCan\Agent(
-					[
-						'objectType' => 'Agent',
-						'name' => $user_data->display_name,
-						'account' => [
-							'homePage' => apply_filters( 'wpxapi_actor_account_homepage', WP_XAPI_DEFAULT_ACTOR_ACCOUNT_HOMEPAGE ),
-							'name' => $unique_id,
-						],
-					]
-				);
 			}
 		}
 
@@ -477,6 +496,17 @@ class WP_Experience_API {
 		?>
 		<div class="error">
 			<p><?php esc_html_e( 'Please tell Network Administrator to set the default username/password/URL of the LRS (for plugin: WP ExperienceA API)', 'wpxapi' ); ?></p>
+		</div>
+		<?php
+	}
+
+	/**
+	* Displays message saying that LRS settings at the network level is NOT set
+	*/
+	public static function config_unset_local_notice() {
+		?>
+		<div class="error">
+			<p><?php esc_html_e( 'Please tell the Site Administrator to set the username/password/URL of the LRS (for plugin: WP ExperienceA API)' ); ?></p>
 		</div>
 		<?php
 	}
