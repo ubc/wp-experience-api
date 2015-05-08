@@ -89,6 +89,11 @@ class WP_Experience_API {
 			}
 		}
 
+		if ( 'Yes' === self::$site_options['wpxapi_network_lrs_stop_all'] ) {
+			add_action( 'admin_notices', array( 'WP_Experience_API', 'stop_all_statements_notice' ) );
+			error_log( 'The Network Administrator chose to stop allowing statements to be sent to the Network level LRS.' );
+		}
+
 		if ( is_admin() || is_network_admin() ) {
 			require_once( plugin_dir_path( __FILE__ ).'wp-experience-api-admin.php' );
 		}
@@ -166,6 +171,10 @@ class WP_Experience_API {
 	 * @return mixed  false on failure, void otherwise
 	 */
 	public static function send( $trigger, $args ) {
+		if ( 'Yes' === self::$site_options['wpxapi_network_lrs_stop_all'] ) {
+			error_log( 'The Network Administrator chose to stop allowing statements to be sent to the Network level LRS.' );
+			return;
+		}
 		//error_log("checkin '".__FUNCTION__."', filter: '".current_filter()."'; args: ".print_r(func_get_args(), true));
 		$data = $trigger['process']( current_filter(), $args );
 
@@ -221,7 +230,7 @@ class WP_Experience_API {
 		}
 
 		if ( ( is_multisite() && is_plugin_active_for_network( 'wp-experience-api/wp-experience-api.php' ) ) || defined( 'WP_XAPI_MU_MODE' ) ) {
-			if ( ! empty( self::$lrs1 ) ) {
+			if ( ! empty( self::$lrs1 ) && 'No' === self::$site_options['wpxapi_network_lrs_stop_network_level_only'] ) {
 				$response = self::$lrs1->saveStatement( $data );
 			}
 		}
@@ -500,6 +509,13 @@ class WP_Experience_API {
 		<?php
 	}
 
+	public static function stop_all_statements_notice() {
+		?>
+		<div class="update-nag">
+			<p><?php esc_html_e( 'The Network Administrator chose to stop allowing statements to be sent to the Network level LRS.', 'wpxapi' ); ?></p>
+		</div>
+		<?php
+	}
 	/**
 	* Displays message saying that LRS settings at the network level is NOT set
 	*/

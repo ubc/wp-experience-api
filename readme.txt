@@ -46,13 +46,13 @@ Assumes you are using PHP version >= 5.4 (requirement of TinCanPHP Library that 
 == Frequently Asked Questions ==
 
 = How can I add more xAPI statements to the plugin? =
-You can either add more to the /includes/triggers.php
+You can create your own plugin and use the plugin's hooks!
 
-= Where is there a config file for username/password when there is an available settings page on the dashboard? =
-Just so you can have more ways of configuring stuff
+= How come nothing is being sent to the LRS after I activate the plugin? =
+The settings are defaulted so that nothing is sent by default.  Please go to the dashboard and the WP xAPI settings page to configure what statements are sent.
 
-= How can I override various parts of the xAPI statements for my own project? =
-Just have a look at wp-experience-api.php file for the apply_filters() calls
+== Upgrade Notice ==
+Nothing yet
 
 == Screenshots ==
 

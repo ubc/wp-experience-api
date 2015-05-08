@@ -13,6 +13,8 @@ class WP_Experience_API_Admin {
 
 	//fields that are saved. need to be smarter though
 	private static $fields = array(
+		'wpxapi_network_lrs_stop_all' => 'No',
+		'wpxapi_network_lrs_stop_network_level_only' => 'No',
 		'wpxapi_network_lrs_url' => '',
 		'wpxapi_network_lrs_username' => '',
 		'wpxapi_network_lrs_password' => '',
@@ -20,6 +22,13 @@ class WP_Experience_API_Admin {
 		'wpxapi_network_lrs_guest' => '',
 		'wpxapi_network_lrs_whitelist' => '',
 		'wpxapi_network_lrs_user_setting' => '2',
+		//***** site level defaults ****//
+		'wpxapi_network_lrs_site_page_views' => 3,
+		'wpxapi_network_lrs_site_posts' => 5,
+		'wpxapi_network_lrs_site_guest' => 0,
+		'wpxapi_network_lrs_site_comments' => 0,
+		'wpxapi_network_lrs_site_earn_badges' => 0,
+		'wpxapi_network_lrs_site_pulsepress' => 4,
 	);
 
 	//need this for sanitization, cause default is to not save checkbox value if not checked!  I want it to be 0 of not checked.
@@ -30,14 +39,14 @@ class WP_Experience_API_Admin {
 	);
 
 	//options for what kind of pages to track
-	private static $page_options = array(
+	public static $page_options = array(
 		'1' => 'All Pages',
 		'2' => 'Singular Pages Only',
 		'3' => 'No Pages',
 	);
 
 	//options for what kind of post status changes to track
-	private static $publish_options = array(
+	public static $publish_options = array(
 		'1' => 'Track posts being published, updated, retracted, and deleted',
 		'2' => 'Track posts being published, updated, and deleted',
 		'3' => 'Track posts being published and deleted',
@@ -46,7 +55,7 @@ class WP_Experience_API_Admin {
 	);
 
 	//options for what kind of pulsepress things to track
-	private static $pulsepress_options = array(
+	public static $pulsepress_options = array(
 		'1' => 'track all votes and favoriting',
 		'2' => 'track only votes',
 		'3' => 'track only favoriting',
@@ -152,7 +161,7 @@ class WP_Experience_API_Admin {
 		if ( WP_Experience_API::is_using_pulsepress_theme() ) {
 			add_settings_field(
 				'wpxapi_voting',
-				__( 'Record PulsePress voting?', 'wpxapi' ),
+				__( 'Record PulsePress Theme voting?', 'wpxapi' ),
 				array( $this, 'wp_xapi_voting_render' ),
 				'wpxapi',
 				'wpxapi_settings_section'
@@ -359,22 +368,6 @@ class WP_Experience_API_Admin {
 	 * function to setup opitons, initialize and save / or pull from options table
 	 */
 	public function setup_options() {
-		$this->options = get_option( 'wpxapi_settings' );
-		if ( false === $this->options ) {
-			$this->options = array(
-				'wpxapi_pages' => 3,
-				'wpxapi_comments' => 0,
-				'wpxapi_badges' => 0,
-				'wpxapi_guest' => 0,
-				'wpxapi_publish' => 5,
-				'wpxapi_voting' => 4,
-				'wpxapi_lrs_url' => '',
-				'wpxapi_lrs_username' => '',
-				'wpxapi_lrs_password' => '',
-			);
-			add_option( 'wpxapi_settings', $this->options );
-		}
-
 		//setup for site wide options
 		$this->site_options = get_site_option( 'wpxapi_network_settings' );
 		if ( false === $this->site_options ) {
@@ -382,6 +375,30 @@ class WP_Experience_API_Admin {
 			add_site_option( 'wpxapi_network_settings', $this->site_options );
 		}
 
+		$this->options = get_option( 'wpxapi_settings' );
+		if ( false === $this->options ) {
+			//we want to use network level set stuff if it is set, else use defaults.
+			$pages = isset( $this->site_options['wpxapi_network_lrs_site_page_views'] ) ? $this->site_options['wpxapi_network_lrs_site_page_views'] : 3;
+			$comments = isset( $this->site_options['wpxapi_network_lrs_site_comments'] ) ? $this->site_options['wpxapi_network_lrs_site_comments'] : 0;
+			$badges = isset( $this->site_options['wpxapi_network_lrs_site_earn_badges'] ) ? $this->site_options['wpxapi_network_lrs_site_earn_badges'] : 0;
+			$guest = isset( $this->site_options['wpxapi_network_lrs_site_guest'] ) ? $this->site_options['wpxapi_network_lrs_site_guest'] : 0;
+			$publish = isset( $this->site_options['wpxapi_network_lrs_site_posts'] ) ? $this->site_options['wpxapi_network_lrs_site_posts'] : 5;
+			$voting = isset( $this->site_options['wpxapi_network_lrs_site_pulsepress'] ) ? $this->site_options['wpxapi_network_lrs_site_pulsepress'] : 4;
+
+			$this->options = array(
+				'wpxapi_pages' => $pages,
+				'wpxapi_comments' => $comments,
+				'wpxapi_badges' => $badges,
+				'wpxapi_guest' => $guest,
+				'wpxapi_publish' => $publish,
+				'wpxapi_voting' => $voting,
+				'wpxapi_lrs_url' => '',
+				'wpxapi_lrs_username' => '',
+				'wpxapi_lrs_password' => '',
+			);
+
+			add_option( 'wpxapi_settings', $this->options );
+		}
 	}
 
 	/**
@@ -452,6 +469,8 @@ class WP_Experience_API_Network_Admin {
 
 	//fields that are saved. need to be smarter though
 	private $fields = array(
+		'wpxapi_network_lrs_stop_all' => 'No',
+		'wpxapi_network_lrs_stop_network_level_only' => 'No',
 		'wpxapi_network_lrs_url' => '',
 		'wpxapi_network_lrs_username' => '',
 		'wpxapi_network_lrs_password' => '',
@@ -459,6 +478,19 @@ class WP_Experience_API_Network_Admin {
 		'wpxapi_network_lrs_guest' => '',
 		'wpxapi_network_lrs_whitelist' => '',
 		'wpxapi_network_lrs_user_setting' => '2',
+		//***** site level defaults ****//
+		'wpxapi_network_lrs_site_page_views' => 3,
+		'wpxapi_network_lrs_site_posts' => 5,
+		'wpxapi_network_lrs_site_guest' => 0,
+		'wpxapi_network_lrs_site_comments' => 0,
+		'wpxapi_network_lrs_site_earn_badges' => 0,
+		'wpxapi_network_lrs_site_pulsepress' => 4,
+	);
+
+	private static $checkbox_fields = array(
+		'wpxapi_network_lrs_site_guest',
+		'wpxapi_network_lrs_site_comments',
+		'wpxapi_network_lrs_site_earn_badges',
 	);
 
 	//options to determine how to id a user in xAPI statement
@@ -541,7 +573,20 @@ class WP_Experience_API_Network_Admin {
 			array( $this, 'wp_xapi_network_section_callback' ),
 			'wpxapi_network'
 		);
-
+		add_settings_field(
+			'wpxapi_network_lrs_stop_all',
+			__( 'Stop ALL statements', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_stop_all_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_section_lrs'
+		);
+		add_settings_field(
+			'wpxapi_network_lrs_stop_network_level_only',
+			__( 'Stop sending statements to Network LRS ONLY', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_stop_network_level_only_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_section_lrs'
+		);
 		add_settings_field(
 			'wpxapi_network_lrs_url',
 			__( 'LRS URL', 'wpxapi' ),
@@ -591,8 +636,164 @@ class WP_Experience_API_Network_Admin {
 			'wpxapi_network',
 			'wpxapi_settings_section_lrs'
 		);
+
+		//site default settings
+		add_settings_section(
+			'wpxapi_settings_site_section_lrs',
+			__( 'WP xAPI Site Level Default Settings', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_section_callback' ),
+			'wpxapi_network'
+		);
+		add_settings_field(
+			'wpxapi_network_lrs_site_page_views',
+			__( 'Record page views?', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_site_page_views_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_site_section_lrs'
+		);
+		add_settings_field(
+			'wpxapi_network_lrs_site_posts',
+			__( 'Record anything being published?', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_site_posts_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_site_section_lrs'
+		);
+		add_settings_field(
+			'wpxapi_network_lrs_site_guest',
+			__( 'Record Guest Page Views?', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_site_guest_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_site_section_lrs'
+		);
+		add_settings_field(
+			'wpxapi_network_lrs_site_comments',
+			__( 'Record comments?', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_site_comments_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_site_section_lrs'
+		);
+		add_settings_field(
+			'wpxapi_network_lrs_site_earn_badges',
+			__( 'Record Earning Badges?', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_site_earn_badges_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_site_section_lrs'
+		);
+		add_settings_field(
+			'wpxapi_network_lrs_site_pulsepress',
+			__( 'Record PulsePress Theme voting?', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_site_pulsepress_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_site_section_lrs'
+		);
 	}
 
+	/**
+	 * Outputs radio kill switch to stop all statements being sent to LRS
+	 *
+	 * @return void
+	 */
+	public function wp_xapi_network_lrs_stop_all_render() {
+		?>
+		<input type='radio' name='wpxapi_network_settings[wpxapi_network_lrs_stop_all]' value='No' <?php checked( $this->options['wpxapi_network_lrs_stop_all'], 'No' ) ?>>No
+		<input type='radio' name='wpxapi_network_settings[wpxapi_network_lrs_stop_all]' value='Yes' <?php checked( $this->options['wpxapi_network_lrs_stop_all'], 'Yes' )?>>Yes
+		<?php
+	}
+
+	/**
+	* Outputs radio kill switch ONLY at the network level to stop all statements being sent to LRS
+	*
+	* @return void
+	*/
+	public function wp_xapi_network_lrs_stop_network_level_only_render() {
+		?>
+		<input type='radio' name='wpxapi_network_settings[wpxapi_network_lrs_stop_network_level_only]' value='No' <?php checked( $this->options['wpxapi_network_lrs_stop_network_level_only'], 'No' ) ?>>No
+		<input type='radio' name='wpxapi_network_settings[wpxapi_network_lrs_stop_network_level_only]' value='Yes' <?php checked( $this->options['wpxapi_network_lrs_stop_network_level_only'], 'Yes' )?>>Yes
+		<?php
+	}
+
+	/**
+	 * Outputs site level default settings
+	 *
+	 * @return void
+	 */
+	public function wp_xapi_network_lrs_site_page_views_render() {
+		?>
+		<select name='wpxapi_network_settings[wpxapi_network_lrs_site_page_views]'>
+		<?php
+		foreach ( WP_Experience_API_Admin::$page_options as $key => $value ) {
+			echo "<option value='" . esc_attr( $key ) . "' " . selected( $this->options['wpxapi_network_lrs_site_page_views'], $key ) . '>' . esc_html( $value ) . '</option>';
+		}
+		?>
+		</select>
+		<?php
+	}
+
+	/**
+	 * Outputs default site posts options
+	 *
+	 * @return void
+	 */
+	public function wp_xapi_network_lrs_site_posts_render() {
+		?>
+			<select name='wpxapi_network_settings[wpxapi_network_lrs_site_posts]'>
+		<?php
+		foreach ( WP_Experience_API_Admin::$publish_options as $key => $value ) {
+			echo "<option value='" . esc_attr( $key ) . "' " . selected( $this->options['wpxapi_network_lrs_site_posts'], $key ) . '>' . esc_html( $value ) . '</option>';
+		}
+		?>
+			</select>
+		<?php
+	}
+
+	/**
+	* Outputs default site anonymous page views options
+	*
+	* @return void
+	*/
+	public function wp_xapi_network_lrs_site_guest_render() {
+		?>
+			<input type='checkbox' name='wpxapi_network_settings[wpxapi_network_lrs_site_guest]' <?php checked( $this->options['wpxapi_network_lrs_site_guest'], 1 ); ?> value='1'>
+		<?php
+	}
+
+	/**
+	 * Outputs default site level comment options
+	 *
+	 * @return void
+	 */
+	public function wp_xapi_network_lrs_site_comments_render() {
+		?>
+			<input type='checkbox' name='wpxapi_network_settings[wpxapi_network_lrs_site_comments]' <?php checked( $this->options['wpxapi_network_lrs_site_comments'], 1 ); ?> value='1'>
+		<?php
+	}
+	/**
+	* Outputs site level default earning badge tracking options
+	*
+	* @return void
+	*/
+	public function wp_xapi_network_lrs_site_earn_badges_render() {
+		?>
+			<input type='checkbox' name='wpxapi_network_settings[wpxapi_network_lrs_site_earn_badges]' <?php checked( $this->options['wpxapi_network_lrs_site_earn_badges'], 1 ); ?> value='1'>
+		<?php
+	}
+
+	/**
+	 * Outputs site level default pulsepress theme voting options
+	 *
+	 * @return void
+	 */
+	public function wp_xapi_network_lrs_site_pulsepress_render() {
+		?>
+			<select name='wpxapi_network_settings[wpxapi_network_lrs_site_pulsepress]'>
+		<?php
+		foreach ( WP_Experience_API_Admin::$pulsepress_options as $key => $value ) {
+			echo "<option value='" . esc_attr( $key ) . "' " . selected( $this->options['wpxapi_network_lrs_site_pulsepress'], $key ) . '>' . esc_html( $value ) . '</option>';
+		}
+		?>
+			</select>
+		<?php
+	}
 	/**
 	 * Outputs the network level LRS URL field
 	 *
@@ -710,6 +911,12 @@ class WP_Experience_API_Network_Admin {
 	 * @return array
 	 */
 	public static function wp_xapi_sanitize_network_options($input) {
+		//fixes to make checkbox to 0 instead of default unset
+		foreach ( WP_Experience_API_Network_Admin::$checkbox_fields as $checkboxKeys ) {
+			if ( ! isset( $input[ $checkboxKeys ] ) ) {
+				$input[ $checkboxKeys ] = 0;
+			}
+		}
 		return $input;
 	}
 
