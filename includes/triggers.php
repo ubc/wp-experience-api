@@ -113,6 +113,12 @@ WP_Experience_API::register( 'page_views', array(
 			}
 		}
 
+		//need to make sure that description is working.
+		$description = get_bloginfo( 'description' );
+		if ( empty( $description ) ) {
+			$description = 'n/a';
+		}
+
 		$statement = null;
 		$statement = array(
 			'verb' => array(
@@ -126,7 +132,7 @@ WP_Experience_API::register( 'page_views', array(
 						'en-US' => get_the_title( absint( $post->ID ) ) . ' | ' . get_bloginfo( 'name' ),
 					),
 					'description' => array(
-						'en-US' => get_bloginfo( 'description' ),
+						'en-US' => $description,
 					),
 					'type' => 'http://activitystrea.ms/schema/1.0/page',
 				)
@@ -535,3 +541,4 @@ ExperienceAPI::register('test_attachment', array(
 	}
 ));
 */
+
