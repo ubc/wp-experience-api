@@ -73,6 +73,9 @@ Nothing yet
 
 == Changelog ==
 
+= 1.0.2 =
+* changed verb for commented statements from created to commented
+
 = 1.0.1 = 
 * fixed bug found where statements are invalid if site tagline is left blank.  Now it will dispay 'n/a' for empty website taglines.
 * updated readme formatting
