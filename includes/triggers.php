@@ -192,12 +192,18 @@ WP_Experience_API::register( 'give_comments', array(
 			return false;
 		}
 
+		//need to make sure that description is working.
+		$description = get_bloginfo( 'description' );
+		if ( empty( $description ) ) {
+			$description = 'n/a';
+		}
+
 		$statement = null;
 		$statement = array(
 				'user' => get_current_user_id(),
 				'verb' => array(
-					'id' => 'http://activitystrea.ms/schema/1.0/create',
-					'display' => array( 'en-US' => 'created' )
+					'id' => 'http://adlnet.gov/expapi/verbs/commented',
+					'display' => array( 'en-US' => 'commented' )
 				),
 				'object' => array(
 					'id' => get_comment_link( $comment_id ),
@@ -206,7 +212,7 @@ WP_Experience_API::register( 'give_comments', array(
 							'en-US' => 'Comment: '.get_the_title( $comment->comment_post_ID ) . ' | ' . get_bloginfo( 'name' ),
 						),
 						'description' => array(
-							'en-US' => get_bloginfo( 'description' ),
+							'en-US' => $description,
 						),
 						'type' => 'http://activitystrea.ms/schema/1.0/comment',
 					)
@@ -254,6 +260,12 @@ WP_Experience_API::register( 'pulse_press_voting', array(
 
 		$verb = $object = $statement = null;
 
+		//need to make sure that description is working.
+		$description = get_bloginfo( 'description' );
+		if ( empty( $description ) ) {
+			$description = 'n/a';
+		}
+
 		$object = array(
 			'id' => get_permalink( $post_id ),
 			'definition' => array(
@@ -261,7 +273,7 @@ WP_Experience_API::register( 'pulse_press_voting', array(
 					'en-US' => get_the_title( $post_id ) . ' | ' . get_bloginfo( 'name' ),
 				),
 				'description' => array(
-					'en-US' => get_bloginfo( 'description' ),
+					'en-US' => $description,
 				),
 				'type' => 'http://activitystrea.ms/schema/1.0/page',
 			)
