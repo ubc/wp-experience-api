@@ -19,6 +19,7 @@ class WP_Experience_API_Admin {
 		'wpxapi_network_lrs_username' => '',
 		'wpxapi_network_lrs_password' => '',
 		'wpxapi_network_lrs_admin' => '',
+		'wpxapi_network_lrs_admin_level' => '2',
 		'wpxapi_network_lrs_guest' => '',
 		'wpxapi_network_lrs_whitelist' => '',
 		'wpxapi_network_lrs_user_setting' => '2',
@@ -69,10 +70,10 @@ class WP_Experience_API_Admin {
 	 * @return void;
 	 */
 	public function __construct() {
+		$this->setup_options();
+
 		add_action( 'admin_menu', array( $this, 'wp_xapi_add_admin_menu' ) );
 		add_action( 'admin_init', array( $this, 'wp_xapi_settings_init' ) );
-
-		$this->setup_options();
 
 		if ( is_network_admin() ) {
 			new WP_Experience_API_Network_Admin();
@@ -80,11 +81,33 @@ class WP_Experience_API_Admin {
 	}
 
 	/**
+	 * Helper function to view stuff
+	 *
+	 * @return boolean tells whether we should show the page or not
+	 */
+	private function wp_xapi_check_if_can_view() {
+		//setup site admin level stuff whether to show site level lrs settings page or not
+		$show_admin_page = false;
+		if ( $this->site_options['wpxapi_network_lrs_admin_level'] == '1' ) {
+			$usernames = array_map( 'trim', explode( ',', $this->site_options['wpxapi_network_lrs_admin'] ) );
+			$user = wp_get_current_user();
+			if ( in_array( $user->user_login, $usernames ) ) {
+				$show_admin_page = true;
+			}
+		} else if ( $this->site_options['wpxapi_network_lrs_admin_level'] == '2' ) {
+			$show_admin_page = true;
+		}
+
+		return ( $show_admin_page || is_super_admin() );
+	}
+	/**
 	 * adds new wp xapi plugin page
 	 */
 	public function wp_xapi_add_admin_menu() {
 		// adding new page
-		add_menu_page( 'WP xAPI', 'WP xAPI', 'manage_options', 'wpxapi', array( $this, 'wp_xapi_options_page' ), 'dashicons-format-status' );
+		if ( wp_xapi_check_if_can_view() ) {
+			add_menu_page( 'WP xAPI', 'WP xAPI', 'manage_options', 'wpxapi', array( $this, 'wp_xapi_options_page' ), 'dashicons-format-status' );
+		}
 	}
 
 	/**
@@ -93,6 +116,10 @@ class WP_Experience_API_Admin {
 	 * @return void
 	 */
 	public function wp_xapi_settings_init() {
+		//simple check to see if can show anything based on network level admin stuff
+		if ( ! wp_xapi_check_if_can_view() ) {
+			return;
+		}
 		register_setting(
 			'wpxapi',
 			'wpxapi_settings',
@@ -170,7 +197,7 @@ class WP_Experience_API_Admin {
 
 		if ( isset( $this->site_options['wpxapi_network_lrs_admin'] ) ) {
 			$usernames = array_map( 'trim', explode( ',', $this->site_options['wpxapi_network_lrs_admin'] ) );
-			$user = get_current_user();
+			$user = wp_get_current_user();
 			if ( in_array( $user->user_login, $usernames ) || is_super_admin() ) {
 				add_settings_section(
 					'wpxapi_settings_section_lrs',
@@ -475,6 +502,7 @@ class WP_Experience_API_Network_Admin {
 		'wpxapi_network_lrs_username' => '',
 		'wpxapi_network_lrs_password' => '',
 		'wpxapi_network_lrs_admin' => '',
+		'wpxapi_network_lrs_admin_level' => '2',
 		'wpxapi_network_lrs_guest' => '',
 		'wpxapi_network_lrs_whitelist' => '',
 		'wpxapi_network_lrs_user_setting' => '2',
@@ -491,6 +519,11 @@ class WP_Experience_API_Network_Admin {
 		'wpxapi_network_lrs_site_guest',
 		'wpxapi_network_lrs_site_comments',
 		'wpxapi_network_lrs_site_earn_badges',
+	);
+
+	private static $admin_level_options = array(
+		'1' => 'Manage all site level settings',
+		'2' => 'Manage only site level LRS settings',
 	);
 
 	//options to determine how to id a user in xAPI statement
@@ -537,6 +570,7 @@ class WP_Experience_API_Network_Admin {
 					$save_array[ $key ] = $value;
 				}
 			}
+
 			update_site_option( 'wpxapi_network_settings', $save_array );
 			$this->options = $save_array;
 		}
@@ -616,9 +650,16 @@ class WP_Experience_API_Network_Admin {
 			'wpxapi_settings_section_lrs'
 		);
 		add_settings_field(
-			'wpxapi_network_lrs_site_admin',
-			__( 'Users that can set site level LRS', 'wpxapi' ),
+			'wpxapi_network_lrs_admin',
+			__( 'Whitelisted Users', 'wpxapi' ),
 			array( $this, 'wp_xapi_network_lrs_admin_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_section_lrs'
+		);
+		add_settings_field(
+			'wpxapi_network_lrs_admin_level',
+			__( 'Whitelisted Users Management Level', 'wpxapi' ),
+			array( $this, 'wp_xapi_network_lrs_admin_level_render' ),
 			'wpxapi_network',
 			'wpxapi_settings_section_lrs'
 		);
@@ -852,9 +893,23 @@ class WP_Experience_API_Network_Admin {
 	 * @return void
 	 */
 	public function wp_xapi_network_lrs_admin_render() {
+
 		?>
 			<input type='text' name='wpxapi_network_settings[wpxapi_network_lrs_admin]' value='<?php echo esc_attr( $this->options['wpxapi_network_lrs_admin'] ); ?>'>
 			<div class="help-div">Please enter a comma separated list of wordpress usernames.</div>
+		<?php
+	}
+
+
+	public function wp_xapi_network_lrs_admin_level_render() {
+		?>
+			<select name='wpxapi_network_settings[wpxapi_network_lrs_admin_level]'>
+			<?php
+			foreach ( WP_Experience_API_Network_Admin::$admin_level_options as $key => $value ) {
+				echo "<option value='" . esc_attr( $key ) . "' " . selected( $this->options['wpxapi_network_lrs_admin_level'], $key ) . '>' . esc_html( $value ) . '</option>';
+			}
+			?>
+			</select>
 		<?php
 	}
 
