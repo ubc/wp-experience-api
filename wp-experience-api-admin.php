@@ -105,7 +105,7 @@ class WP_Experience_API_Admin {
 	 */
 	public function wp_xapi_add_admin_menu() {
 		// adding new page
-		if ( wp_xapi_check_if_can_view() ) {
+		if ( $this->wp_xapi_check_if_can_view() ) {
 			add_menu_page( 'WP xAPI', 'WP xAPI', 'manage_options', 'wpxapi', array( $this, 'wp_xapi_options_page' ), 'dashicons-format-status' );
 		}
 	}
@@ -117,7 +117,7 @@ class WP_Experience_API_Admin {
 	 */
 	public function wp_xapi_settings_init() {
 		//simple check to see if can show anything based on network level admin stuff
-		if ( ! wp_xapi_check_if_can_view() ) {
+		if ( ! $this->wp_xapi_check_if_can_view() ) {
 			return;
 		}
 		register_setting(
