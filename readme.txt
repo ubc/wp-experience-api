@@ -3,7 +3,7 @@ Contributors: Devindra Payment, loongchan, ctlt-dev
 Tags:  xAPI, BadgeOS, Tincan, LRS, Experience API, Tin Can API
 Requires at least: WordPress 3.5
 Tested up to: 4.2.1
-Stable tag: 1.0.2 
+Stable tag: 1.0.3 
 License: GNU AGPLv3
 License URI: http://www.gnu.org/licenses/agpl-3.0.html
 
@@ -72,6 +72,9 @@ Nothing yet
 3. The administration page for regular site administators.
 
 == Changelog ==
+
+= 1.0.3 =
+* added additional options for whitelisted users access level.  Options are whitelisted users have full control or only control LRS info at the site level.
 
 = 1.0.2 =
 * changed verb for commented statements from created to commented
