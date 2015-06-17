@@ -51,7 +51,7 @@ class WP_Experience_API {
 	public static function init() {
 
 		// need to check for php version!  min 5.4
-		if ( ! self::check_php_version() ) {
+		if ( ! WP_Experience_API::check_php_version() ) {
 			deactivate_plugins( plugin_basename( __FILE__ ) );
 			add_action( 'admin_notices', array( 'WP_Experience_API', 'php_disable_notice' ) );
 			if ( isset( $_GET['activate'] ) ) {
@@ -64,16 +64,16 @@ class WP_Experience_API {
 		}
 
 		//get options
-		WP_Experience_API::$options = get_option( 'wpxapi_settings' );
-		self::$site_options = get_site_option( 'wpxapi_network_settings' );
+		WP_Experience_API::$options = WP_Experience_API::wpxapi_get_blog_option( 'wpxapi_settings' );
+		WP_Experience_API::$site_options = get_site_option( 'wpxapi_network_settings' );
 		if ( ( is_multisite() && is_plugin_active_for_network( 'wp-experience-api/wp-experience-api.php' ) ) || defined( 'WP_XAPI_MU_MODE' ) ) {
-			if ( ! empty( self::$site_options ) || ! empty( self::$site_options['wpxapi_network_lrs_password'] ) && ! empty( self::$site_options['wpxapi_network_lrs_username'] ) && ! empty( self::$site_options['wpxapi_network_lrs_url'] ) ) {
+			if ( ! empty( WP_Experience_API::$site_options ) || ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_password'] ) && ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_username'] ) && ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_url'] ) ) {
 
-				self::$lrs1 = new TinCan\RemoteLRS(
-					self::$site_options['wpxapi_network_lrs_url'],
+				WP_Experience_API::$lrs1 = new TinCan\RemoteLRS(
+					WP_Experience_API::$site_options['wpxapi_network_lrs_url'],
 					WP_XAPI_DEFAULT_XAPI_VERSION,
-					self::$site_options['wpxapi_network_lrs_username'],
-					self::$site_options['wpxapi_network_lrs_password']
+					WP_Experience_API::$site_options['wpxapi_network_lrs_username'],
+					WP_Experience_API::$site_options['wpxapi_network_lrs_password']
 				);
 			} else {
 				add_action( 'admin_notices', array( 'WP_Experience_API', 'config_unset_notice' ) );
@@ -89,7 +89,7 @@ class WP_Experience_API {
 			}
 		}
 
-		if ( 'Yes' === self::$site_options['wpxapi_network_lrs_stop_all'] ) {
+		if ( 'Yes' === WP_Experience_API::$site_options['wpxapi_network_lrs_stop_all'] ) {
 			add_action( 'admin_notices', array( 'WP_Experience_API', 'stop_all_statements_notice' ) );
 			error_log( 'The Network Administrator chose to stop allowing statements to be sent to the Network level LRS.' );
 		}
@@ -115,7 +115,7 @@ class WP_Experience_API {
 	public static function load() {
 		$register_locked = true;
 
-		foreach ( self::$triggers as $slug => $trigger ) {
+		foreach ( WP_Experience_API::$triggers as $slug => $trigger ) {
 			foreach ( $trigger['hooks'] as $hook ) {
 				$args = 1;
 				$priority = 10;
@@ -145,8 +145,8 @@ class WP_Experience_API {
 	 * @return void
 	 */
 	public static function register( $slug, $data ) {
-		if ( ! self::$register_locked ) {
-			self::$triggers[ $slug ] = $data;
+		if ( ! WP_Experience_API::$register_locked ) {
+			WP_Experience_API::$triggers[ $slug ] = $data;
 		}
 	}
 
@@ -158,8 +158,8 @@ class WP_Experience_API {
 	 * @return void
 	 */
 	public static function deregister( $slug, $data ) {
-		if ( ! self::$register_locked ) {
-			unset( self::$triggers[ $slug ] );
+		if ( ! WP_Experience_API::$register_locked ) {
+			unset( WP_Experience_API::$triggers[ $slug ] );
 		}
 	}
 
@@ -171,7 +171,7 @@ class WP_Experience_API {
 	 * @return mixed  false on failure, void otherwise
 	 */
 	public static function send( $trigger, $args ) {
-		if ( 'Yes' === self::$site_options['wpxapi_network_lrs_stop_all'] ) {
+		if ( 'Yes' === WP_Experience_API::$site_options['wpxapi_network_lrs_stop_all'] ) {
 			error_log( 'The Network Administrator chose to stop allowing statements to be sent to the Network level LRS.' );
 			return;
 		}
@@ -215,7 +215,7 @@ class WP_Experience_API {
 			$statement['attachments'] = $attachments;
 		}
 
-		self::post( new TinCan\Statement( apply_filters( 'wpxapi_statement', $statement ) ) );
+		WP_Experience_API::post( new TinCan\Statement( apply_filters( 'wpxapi_statement', $statement ) ) );
 	}
 
 	/**
@@ -230,8 +230,8 @@ class WP_Experience_API {
 		}
 
 		if ( ( is_multisite() && is_plugin_active_for_network( 'wp-experience-api/wp-experience-api.php' ) ) || defined( 'WP_XAPI_MU_MODE' ) ) {
-			if ( ! empty( self::$lrs1 ) && 'No' === self::$site_options['wpxapi_network_lrs_stop_network_level_only'] ) {
-				$response = self::$lrs1->saveStatement( $data );
+			if ( ! empty( WP_Experience_API::$lrs1 ) && 'No' === WP_Experience_API::$site_options['wpxapi_network_lrs_stop_network_level_only'] ) {
+				$response = WP_Experience_API::$lrs1->saveStatement( $data );
 			}
 		}
 
@@ -267,7 +267,7 @@ class WP_Experience_API {
 
 			if ( false !== $user_data ) {
 				//now we pull the account/email option!
-				if ( ! empty( self::$site_options['wpxapi_network_lrs_user_setting'] ) && 2 == self::$site_options['wpxapi_network_lrs_user_setting'] ) {
+				if ( ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_user_setting'] ) && 2 == WP_Experience_API::$site_options['wpxapi_network_lrs_user_setting'] ) {
 					//if email
 					$actor = new TinCan\Agent(
 						[
@@ -435,7 +435,7 @@ class WP_Experience_API {
 	 */
 	public static function meets_badgeos_dependencies() {
 		$return = true;
-		foreach ( self::$dependencies as $class => $url ) {
+		foreach ( WP_Experience_API::$dependencies as $class => $url ) {
 			if ( ! class_exists( $class ) ) {
 				$return = false;
 				break;
@@ -453,7 +453,7 @@ class WP_Experience_API {
 	 * NOTE: not currently used as it will force users to have other plugins installed.
 	 */
 	public static function meets_requirements() {
-		$return = self::meets_badgeOS_dependencies();
+		$return = WP_Experience_API::meets_badgeOS_dependencies();
 
 		//we only want to show this in admin panels and only for folks that can do something about it, aka admins and above
 		if ( false === $return && is_admin() && current_user_can( 'activate_plugins' ) ) {
@@ -485,7 +485,7 @@ class WP_Experience_API {
 	 */
 	public static function dependencies_disable_notice() {
 		echo "<div class='error'>";
-		foreach ( self::$dependencies as $class => $url ) {
+		foreach ( WP_Experience_API::$dependencies as $class => $url ) {
 			if ( ! class_exists( $class ) ) {
 				$dependency = sprintf( '<a href="%s">%s</a>', esc_url( $url ), esc_html( $class ) );
 				?>
@@ -553,6 +553,21 @@ class WP_Experience_API {
 			$page_url .= $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];
 		}
 		return $page_url;
+	}
+
+	/**
+	 * Basically a wrapper for a wrapper so that getting options work for both
+	 * multisite and stand alone sites
+	 *
+	 * @param $option_name String name of option wanted at single blog level
+	 *
+	 */
+	public static function wpxapi_get_blog_option( $option_name ) {
+		if ( function_exists( 'get_blog_option' ) ) {
+			return get_blog_option( null, $option_name );
+		} else {
+			return get_option( $option_name );
+		}
 	}
 }
 

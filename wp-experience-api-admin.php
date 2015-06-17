@@ -402,7 +402,7 @@ class WP_Experience_API_Admin {
 			add_site_option( 'wpxapi_network_settings', $this->site_options );
 		}
 
-		$this->options = get_option( 'wpxapi_settings' );
+		$this->options = WP_Experience_API::wpxapi_get_blog_option( 'wpxapi_settings' );
 		if ( false === $this->options ) {
 			//we want to use network level set stuff if it is set, else use defaults.
 			$pages = isset( $this->site_options['wpxapi_network_lrs_site_page_views'] ) ? $this->site_options['wpxapi_network_lrs_site_page_views'] : 3;

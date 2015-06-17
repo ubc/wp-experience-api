@@ -32,7 +32,7 @@ WP_Experience_API::register( 'earned_badges', array(
 
 		//figure out url for badge assertion.
 
-		$uid = current_achievement_id . '-' . get_post_time( 'U', true ) . '-' . current_user_id;
+		$uid = $current_achievement_id . '-' . get_post_time( 'U', true ) . '-' . $current_user_id;
 		$assertion_url = site_url() . '/' . get_option( 'json_api_base', 'api' ) . '/badge/assertion/?uid=' . $uid;
 		$issuer_url = site_url() . '/' . get_option( 'json_api_base', 'api' ) . '/badge/issuer/?uid=' . $uid;
 		$badge_url = site_url() . '/' . get_option( 'json_api_base', 'api' ) . '/badge/badge_class/?uid=' . $uid;
@@ -356,16 +356,16 @@ WP_Experience_API::register( 'transition_post', array(
 	'process' => function( $hook, $args ) {  //args in this case should be ($new_status, $old_status, $post)
 		global $post;
 
-		$curent_post = null;
+		$current_post = null;
 		$switched_post = false; //so we can keep track if we switched posts
 		//put verb here cause we have to account for multiple possible verbs (trashed/authored for now)
 		$verb = array( 'id' => 'http://activitystrea.ms/schema/1.0/author', 'display' => array( 'en-US' => 'authored' ) );
 
 		//switch to post passed in via args vs global one as it's old and we are updating posts
 		if ( isset( $args[2] ) && ! empty( $args[2] ) && $args[2] instanceof WP_Post ) {
-			$curent_post = absint( $args[2] );
+			$current_post =  $args[2];
 		} else {
-			$curent_post = $post;
+			$current_post = $post;
 		}
 
 		//check site level settings for what to watch 3: nothing, 2: only to published, 1: to published and deleted
@@ -553,4 +553,3 @@ ExperienceAPI::register('test_attachment', array(
 	}
 ));
 */
-
