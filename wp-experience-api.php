@@ -64,8 +64,8 @@ class WP_Experience_API {
 		}
 
 		//get options
-		WP_Experience_API::$options = WP_Experience_API::wpxapi_get_blog_option( 'wpxapi_settings' );
-		WP_Experience_API::$site_options = get_site_option( 'wpxapi_network_settings' );
+		WP_Experience_API::$options = WP_Experience_API::wpxapi_get_class_option( false ); //WP_Experience_API::wpxapi_get_blog_option( 'wpxapi_settings' );
+		WP_Experience_API::$site_options = WP_Experience_API::wpxapi_get_class_option( true ); //get_site_option( 'wpxapi_network_settings' );
 		if ( ( is_multisite() && is_plugin_active_for_network( 'wp-experience-api/wp-experience-api.php' ) ) || defined( 'WP_XAPI_MU_MODE' ) ) {
 			if ( ! empty( WP_Experience_API::$site_options ) || ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_password'] ) && ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_username'] ) && ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_url'] ) ) {
 
@@ -192,6 +192,7 @@ class WP_Experience_API {
 		$context = WP_Experience_API::create_context( $data );
 		$result = WP_Experience_API::create_result( $data );
 		$attachments = WP_Experience_API::create_attachments( $data );
+		$timestamp = WP_Experience_API::create_timestamp( $data );
 
 		//sanity check as actor/verb/object is required.  the rest os recommended.
 		if ( empty( $actor ) || empty( $verb ) || empty( $object ) ) {
@@ -213,6 +214,10 @@ class WP_Experience_API {
 		}
 		if ( ! empty( $attachments ) ) {
 			$statement['attachments'] = $attachments;
+		}
+
+		if ( ! empty( $timestamp ) ) {
+			$statement['timestamp'] = $timestamp;
 		}
 
 		WP_Experience_API::post( new TinCan\Statement( apply_filters( 'wpxapi_statement', $statement ) ) );
@@ -380,6 +385,13 @@ class WP_Experience_API {
 		return apply_filters( 'wpxapi_context', $context, $data );
 	}
 
+	public static function create_timestamp( $data ) {
+		$timestamp = null;
+		if ( isset( $data['timestamp_raw'] ) ) {
+			$timestamp = $data['timestamp_raw'];
+		}
+		return apply_filters( 'wpxapi_timestamp', $timestamp, $data );
+	}
 	/**
 	 * creates result
 	 *
@@ -555,6 +567,27 @@ class WP_Experience_API {
 		return $page_url;
 	}
 
+	/**
+	 * singleton wrapper for getting options
+	 *
+	 * @param $site boolean if true, then get site option.  If false, then get network options.
+	 */
+	public static function wpxapi_get_class_option( $network = true ) {
+		if ( true === $network ) {
+			//get network level options
+			if ( null === WP_Experience_API::$site_options ) {
+				static::$site_options = get_site_option( 'wpxapi_network_settings' );
+			}
+			return WP_Experience_API::$site_options;
+		} else {
+			// get site level options
+			if ( null === WP_Experience_API::$options ) {
+				static::$options = WP_Experience_API::wpxapi_get_blog_option( 'wpxapi_settings' );
+			}
+
+			return WP_Experience_API::$options;
+		}
+	}
 	/**
 	 * Basically a wrapper for a wrapper so that getting options work for both
 	 * multisite and stand alone sites

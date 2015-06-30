@@ -84,7 +84,8 @@ WP_Experience_API::register( 'earned_badges', array(
 							'@id' => $assertion_url,
 						)
 					)
-			)
+			),
+			'timestamp_raw' => date( DATE_ISO8601 )
 		);
 		return $statement;
 	}
@@ -143,7 +144,8 @@ WP_Experience_API::register( 'page_views', array(
 					'http://nextsoftwaresolutions.com/xapi/extensions/referer' => $_SERVER['HTTP_REFERER'],
 				),
 				'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown'
-			)
+			),
+			'timestamp_raw' => date( DATE_ISO8601 )
 		);
 
 		$user = get_current_user_id();
@@ -200,33 +202,34 @@ WP_Experience_API::register( 'give_comments', array(
 
 		$statement = null;
 		$statement = array(
-				'user' => get_current_user_id(),
-				'verb' => array(
-					'id' => 'http://adlnet.gov/expapi/verbs/commented',
-					'display' => array( 'en-US' => 'commented' )
-				),
-				'object' => array(
-					'id' => get_comment_link( $comment_id ),
-					'definition' => array(
-						'name' => array(
-							'en-US' => 'Comment: '.get_the_title( $comment->comment_post_ID ) . ' | ' . get_bloginfo( 'name' ),
-						),
-						'description' => array(
-							'en-US' => $description,
-						),
-						'type' => 'http://activitystrea.ms/schema/1.0/comment',
-					)
-				),
-				'context_raw' => array(
-					'extensions' => array(
-						'http://id.tincanapi.com/extension/browser-info' => array( 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ),
-						'http://nextsoftwaresolutions.com/xapi/extensions/referer' => $_SERVER['HTTP_REFERER'],
+			'user' => get_current_user_id(),
+			'verb' => array(
+				'id' => 'http://adlnet.gov/expapi/verbs/commented',
+				'display' => array( 'en-US' => 'commented' )
+			),
+			'object' => array(
+				'id' => get_comment_link( $comment_id ),
+				'definition' => array(
+					'name' => array(
+						'en-US' => 'Comment: '.get_the_title( $comment->comment_post_ID ) . ' | ' . get_bloginfo( 'name' ),
 					),
-					'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown',
-				),
-				'result_raw' => array(
-					'response' => $comment->comment_content,
+					'description' => array(
+						'en-US' => $description,
+					),
+					'type' => 'http://activitystrea.ms/schema/1.0/comment',
 				)
+			),
+			'context_raw' => array(
+				'extensions' => array(
+					'http://id.tincanapi.com/extension/browser-info' => array( 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ),
+					'http://nextsoftwaresolutions.com/xapi/extensions/referer' => $_SERVER['HTTP_REFERER'],
+				),
+				'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown',
+			),
+			'result_raw' => array(
+				'response' => $comment->comment_content,
+			),
+			'timestamp_raw' => date( DATE_ISO8601 )
 		);
 
 		return $statement;
@@ -341,6 +344,7 @@ WP_Experience_API::register( 'pulse_press_voting', array(
 				),
 				'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown',
 			),
+			'timestamp_raw' => date( DATE_ISO8601 )
 		);
 
 		return $statement;
@@ -448,30 +452,31 @@ WP_Experience_API::register( 'transition_post', array(
 
 		$statement = null;
 		$statement = array(
-				'user' => get_current_user_id(),
-				'verb' => array(
-					'id' => $verb['id'],
-					'display' => $verb['display'],
-				),
-				'object' => array(
-					'id' => get_permalink( $current_post->ID ),
-					'definition' => array(
-						'name' => array(
-							'en-US' => (string) $current_post->post_title . ' | ' . get_bloginfo( 'name' ),
-						),
-						'type' => 'http://activitystrea.ms/schema/1.0/page',
-					)
-				),
-				'context_raw' => array(
-					'extensions' => array(
-						'http://id.tincanapi.com/extension/browser-info' => array( 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ),
-						'http://nextsoftwaresolutions.com/xapi/extensions/referer' => $_SERVER['HTTP_REFERER'],
+			'user' => get_current_user_id(),
+			'verb' => array(
+				'id' => $verb['id'],
+				'display' => $verb['display'],
+			),
+			'object' => array(
+				'id' => get_permalink( $current_post->ID ),
+				'definition' => array(
+					'name' => array(
+						'en-US' => (string) $current_post->post_title . ' | ' . get_bloginfo( 'name' ),
 					),
-					'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown'
-				),
-				'result_raw' => array(
-					'response' => $current_post->post_content,
+					'type' => 'http://activitystrea.ms/schema/1.0/page',
 				)
+			),
+			'context_raw' => array(
+				'extensions' => array(
+					'http://id.tincanapi.com/extension/browser-info' => array( 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ),
+					'http://nextsoftwaresolutions.com/xapi/extensions/referer' => $_SERVER['HTTP_REFERER'],
+				),
+				'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown'
+			),
+			'result_raw' => array(
+				'response' => $current_post->post_content,
+			),
+			'timestamp_raw' => date( DATE_ISO8601 )
 		);
 
 		//now get description and insert if there is something
