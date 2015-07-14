@@ -29,6 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once( 'wp-experience-api-configs.php' );
 require_once( 'includes/TinCanPHP/autoload.php' );
+require_once( 'wp-experience-api-queue-obj.php' );
 
 class WP_Experience_API {
 
@@ -64,7 +65,7 @@ class WP_Experience_API {
 		}
 
 		//get options
-		WP_Experience_API::$options = WP_Experience_API::wpxapi_get_class_option( false ); //WP_Experience_API::wpxapi_get_blog_option( 'wpxapi_settings' );
+		WP_Experience_API::$options = WP_Experience_API::wpxapi_get_class_option( false );
 		WP_Experience_API::$site_options = WP_Experience_API::wpxapi_get_class_option( true ); //get_site_option( 'wpxapi_network_settings' );
 		if ( ( is_multisite() && is_plugin_active_for_network( 'wp-experience-api/wp-experience-api.php' ) ) || defined( 'WP_XAPI_MU_MODE' ) ) {
 			if ( ! empty( WP_Experience_API::$site_options ) || ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_password'] ) && ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_username'] ) && ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_url'] ) ) {
@@ -105,6 +106,39 @@ class WP_Experience_API {
 
 		add_action( 'init', array( __CLASS__, 'load' ) );
 
+	}
+
+	/**
+	 * does basic activation stuff such as... create table!
+	 *
+	 * @props http://shibashake.com/wordpress-theme/write-a-plugin-for-wordpress-multi-site
+	 * @return void
+	 */
+	public static function wpxapi_on_activate() {
+		global $wpdb;
+
+		//use base_prefix so it will be on global regardless of mu or single site
+		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
+		if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table_name}'" ) != $table_name ) {
+			if ( ! empty( $wpdb->charset ) ) {
+				$charset_collate = "DEFAULT CHARACTER SET {$wpdb->charset}";
+			}
+			if ( ! empty( $wpdb->collate ) ) {
+				$charset_collate .= " COLLATE {$wpdb->collate}";
+			}
+			$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+				id bigint NOT NULL AUTO_INCREMENT,
+				tries tinyint UNSIGNED NOT NULL DEFAULT '1',
+				last_try_time datetime,
+				statement text NOT NULL,
+				lrs_info text NOT NULL,
+				created timestamp DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (id)
+			) {$charset_collate};";
+
+			require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+			dbDelta( $sql );
+		}
 	}
 
 	/**
@@ -237,6 +271,17 @@ class WP_Experience_API {
 		if ( ( is_multisite() && is_plugin_active_for_network( 'wp-experience-api/wp-experience-api.php' ) ) || defined( 'WP_XAPI_MU_MODE' ) ) {
 			if ( ! empty( WP_Experience_API::$lrs1 ) && 'No' === WP_Experience_API::$site_options['wpxapi_network_lrs_stop_network_level_only'] ) {
 				$response = WP_Experience_API::$lrs1->saveStatement( $data );
+
+				if ( false === boolval( $response->success ) ) {
+					//since it fails, we add to queue!
+					$lrs_info = array(
+						'endpoint' => WP_Experience_API::$site_options['wpxapi_network_lrs_url'],
+						'version' => WP_XAPI_DEFAULT_XAPI_VERSION,
+						'username' => WP_Experience_API::$site_options['wpxapi_network_lrs_username'],
+						'password' => WP_Experience_API::$site_options['wpxapi_network_lrs_password'],
+					);
+					WP_Experience_API::wpxapi_queue_enqueue( $data, $lrs_info );
+				}
 			}
 		}
 
@@ -248,6 +293,17 @@ class WP_Experience_API {
 				WP_Experience_API::$options['wpxapi_lrs_password']
 			);
 			$response2 = $lrs2->saveStatement( $data );
+
+			if ( false === boolval( $response2->success ) ) {
+				//failed, so enqueue!
+				$lrs_info = array(
+					'endpoint' => WP_Experience_API::$options['wpxapi_lrs_url'],
+					'version' => WP_XAPI_DEFAULT_XAPI_VERSION,
+					'username' => WP_Experience_API::$options['wpxapi_lrs_username'],
+					'password' => WP_Experience_API::$options['wpxapi_lrs_password'],
+				);
+				WP_Experience_API::wpxapi_queue_enqueue( $data, $lrs_info );
+			}
 		}
 
 		return;
@@ -286,6 +342,8 @@ class WP_Experience_API {
 					$unique_id = apply_filters( 'wpxapi_actor_account_name', get_user_meta( $user_data->ID, WP_XAPI_DEFAULT_ACTOR_ACCOUNT_NAME, true ) );
 
 					if ( empty( $unique_id ) ) {
+						//we give this error message BECAUSE I was caught debugging this > 3 times!
+						error_log( 'Please ensure that the constants in wp-experience-api-configs.php file is set properly!' );
 						return;
 					}
 
@@ -588,6 +646,7 @@ class WP_Experience_API {
 			return WP_Experience_API::$options;
 		}
 	}
+
 	/**
 	 * Basically a wrapper for a wrapper so that getting options work for both
 	 * multisite and stand alone sites
@@ -602,6 +661,77 @@ class WP_Experience_API {
 			return get_option( $option_name );
 		}
 	}
+
+	/**
+	 * checks if global statement queue is empty or not
+	 *
+	 * @return boolean false if emtpy, true otherwise
+	 */
+	public static function wpxapi_queue_is_empty() {
+		global $wpdb;
+		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
+
+		$sql = "SELECT COUNT(*) FROM $table_name";
+
+		return (bool) $wpdb->get_var( $sql );
+	}
+
+	/**
+	 * adds statement to queue
+	 *
+	 * This is triggered when statement fails to send
+	 *
+	 * @param mixed $statement either TinCan\Statement or WP_Experience_Queue_Object
+	 * @param Array $lrs_info eg. array('endpoing' => 'xx', 'version' => 'yy', 'username' => 'zz', 'password')
+	 * @return Boolean true if it worked, false otherwise
+	 */
+	public static function wpxapi_queue_enqueue( $statement, $lrs_info ) {
+		global $wpdb;
+		$queue = null;
+		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
+
+		//create queue instance based on what's passed in
+		if ( $statement instanceof TinCan\Statement ) {
+				$queue = WP_Experience_Queue_Object::with_statement_lrs_info( $table_name, $statement, $lrs_info );
+		} else if ( $statement instanceof WP_Experience_Queue_Object ){
+			 $statement->tried_sending_again();
+			 $queue = $statement;
+		}
+
+		//save queue!
+		return (bool) $queue->save_row();
+	}
+
+	/**
+	 * removes item from queue
+	 *
+	 * @return TinCan\Statement
+	 */
+	public static function wpxapi_queue_dequeue() {
+		global $wpdb;
+		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
+
+		$queue_obj = WP_Experience_Queue_Object::get_row( $table_name );
+
+		return $queue_obj;
+	}
 }
 
 WP_Experience_API::init();
+
+//OK, so depending on single installation or multisite install, we do different
+
+//single stand alone site install... register_activation_hook should work.
+//the "queue" is global, so after the first activation where table is created,
+//it is just checked to see the table is there on activation again.
+register_activation_hook( __FILE__, array( 'WP_Experience_API', 'wpxapi_on_activate' ) );
+
+//this is for special case of plugin working with mu_plugins folder
+//@props https://wordpress.org/support/topic/register_activation_hook-on-multisite
+if ( is_multisite() ) {
+	//check if in mu_plugins folder.  We go up 2 directories because we assume
+	//user installed it properly following instructions!
+	if ( WPMU_PLUGIN_DIR == dirname( dirname( __FILE__ ) ) ) {
+		WP_Experience_API::wpxapi_on_activate();
+	}
+}
