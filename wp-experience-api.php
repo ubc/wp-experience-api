@@ -139,6 +139,9 @@ class WP_Experience_API {
 			require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 			dbDelta( $sql );
 		}
+
+		//deal with creating a cron function that sends stuff from the queue
+		wp_schedule_event( time(), WP_XAPI_QUEUE_RECURRANCE, array( 'WP_Experience_API', 'wpxapi_run_queue' ) );
 	}
 
 	/**
@@ -663,17 +666,83 @@ class WP_Experience_API {
 	}
 
 	/**
+	 * Pulls from the queue and sends tries to resend xAPI statements
+	 * 
+	 * NOTES:
+	 * - it goes through the entire queue
+	 * - checks if past max tries
+	 * - checks if past next retry time (based on last try time and # of attempts)
+	 * - tries sending, if fails, adds back to queue
+	 * 
+	 * @return boolean
+	 */
+	public static function wpxapi_run_queue() {
+		if ( ! WP_Experience_API::wpxapi_queue_is_empty() ) {
+			$past_retry_time_limit = false;
+			$count = WP_Experience_API::wpxapi_queue_is_empty( true );
+			$i = 0; //counter
+			
+			while ( $i < $count && ! $past_retry_time_limit ) {
+				$i++;
+				
+				//get queue object
+				$queue_obj = WP_Experience_API::wpxapi_queue_dequeue();
+	
+				//sanity check that queue_obj is NOT empty
+				if ( empty( $queue_obj ) ) {
+					return false;
+				}
+				
+				//if past max tries, then throw error message into log.
+				if ( $queue_obj->tries > WP_XAPI_MAX_SENDING_TRIES ) {
+					error_log('Max number of tries exceeded for the following statement: '.print_r( $queue_obj->statement, true ) );
+					return false;
+				}
+				
+				//check retry time to make sure it's good still.
+				$last_try_time = intval( strtotime( $queue_obj->last_try_time ) );
+				$next_retry_time = $last_try_time + pow( 2, intval( $queue_obj->tries ) );
+				if ( time() < $next_retry_time ) {
+					continue;
+				}
+
+				//try sending the statement!
+				$lrs_info = $queue_obj->lrs_info;
+				$lrs = new TinCan\RemoteLRS(
+					$lrs_info['endpoint'],
+					$lrs_info['version'],
+					$lrs_info['username'],
+					$lrs_info['password']
+				);
+				$response = $lrs->saveStatement( $data );
+	
+				if ( false === boolval( $response->success ) ) {
+					//failed, so enqueue again!
+					WP_Experience_API::wpxapi_queue_enqueue( $queue_obj );
+				}
+			}
+		}
+	}
+
+	/**
 	 * checks if global statement queue is empty or not
 	 *
-	 * @return boolean false if emtpy, true otherwise
+	 * @param boolean if true, then returns number, else returns boolean
+	 * @return mixed if $count == true, return count, else return boolean
 	 */
-	public static function wpxapi_queue_is_empty() {
+	public static function wpxapi_queue_is_empty( $count = false ) {
 		global $wpdb;
+		$return_value = null;
 		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
 
 		$sql = "SELECT COUNT(*) FROM $table_name";
+		$return_value = $wpdb->get_var( $sql );
 
-		return (bool) $wpdb->get_var( $sql );
+		if ( ! $count ) {
+			$return_value = boolval( $return_value );
+		}
+		
+		return $return_value;
 	}
 
 	/**
@@ -692,7 +761,11 @@ class WP_Experience_API {
 
 		//create queue instance based on what's passed in
 		if ( $statement instanceof TinCan\Statement ) {
-				$queue = WP_Experience_Queue_Object::with_statement_lrs_info( $table_name, $statement, $lrs_info );
+			//sanity check, for in this case, we need both parameters NOT empty!
+			if ( empty( $lrs_info ) ) {
+				return false;
+			}
+			$queue = WP_Experience_Queue_Object::with_statement_lrs_info( $table_name, $statement, $lrs_info );
 		} else if ( $statement instanceof WP_Experience_Queue_Object ){
 			 $statement->tried_sending_again();
 			 $queue = $statement;

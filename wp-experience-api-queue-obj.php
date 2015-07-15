@@ -4,11 +4,15 @@
  */
 class WP_Experience_Queue_Object {
 	const MYSQL_DATETIME_FORMAT = 'Y-m-d H:i:s';
+	const LRS_ENDPOINT = 'endpoint';
+	const LRS_VERSION = 'version';
+	const LRS_USERNAME = 'username';
+	const LRS_PASSWORD = 'password';
 	public $table_name;
 	public $id = null;
 	public $tries = 1;
 	public $last_try_time = null;
-	public $statement = '';
+	public $statement = null;
 	public $lrs_info = '';
 	public $created = null;
 
@@ -43,17 +47,17 @@ class WP_Experience_Queue_Object {
 		if ( empty( $statement ) || ! $statement instanceof TinCan\Statement ) {
 			return false;
 		}
-		if ( empty( $lrs_info ) || ! isset( $lrs_info['endpoint'] ) || ! isset( $lrs_info['version'] ) || ! isset( $lrs_info['username'] ) || ! isset( $lrs_info['password'] ) ) {
+		if ( empty( $lrs_info ) || ! isset( $lrs_info[LRS_ENDPOINT] ) || ! isset( $lrs_info[LRS_VERSION] ) || ! isset( $lrs_info[LRS_USERNAME] ) || ! isset( $lrs_info[LRS_PASSWORD] ) ) {
 			return false;
 		}
 
 		//ok, setup instance info so we can send it back!
 		$instance->statement = $statement;
 		$instance->lrs_info = array(
-				'endpoint' => $lrs_info['endpoint'],
-				'version' => $lrs_info['version'],
-				'username' => $lrs_info['username'],
-				'password' => $lrs_info['password'],
+				LRS_ENDPOINT => $lrs_info[LRS_ENDPOINT],
+				LRS_VERSION => $lrs_info[LRS_VERSION],
+				LRS_USERNAME => $lrs_info[LRS_USERNAME],
+				LRS_PASSWORD => $lrs_info[LRS_PASSWORD],
 			);
 
 		return $instance;
@@ -74,10 +78,10 @@ class WP_Experience_Queue_Object {
 		}
 
 		$this->lrs_info = array(
-				'endpoint' => $endpoint,
-				'version' => $version,
-				'username' => $username,
-				'password' => $password,
+				LRS_ENDPOINT => $endpoint,
+				LRS_VERSION => $version,
+				LRS_USERNAME => $username,
+				LRS_PASSWORD => $password,
 			);
 	}
 
@@ -154,7 +158,7 @@ class WP_Experience_Queue_Object {
 		global $wpdb;
 		$table_name = $this->table_name;
 
-		$statement = serialize( $this->statement );
+		$statement = serialize( $this->statement->asVersion( $this->lrs_info[LRS_VERSION] ) );
 		$lrs_info = serialize( $this->lrs_info );
 		$ltt = $this->last_try_time;
 		$tries = $this->tries;
@@ -170,7 +174,7 @@ class WP_Experience_Queue_Object {
 				$lrs_info
 			);
 		} else {
-			return sprintf( $sql, $tries, $ltt, $statement, $currently_retrying );
+			return sprintf( $sql, $tries, $ltt, $statement, $lrs_info );
 		}
 	}
 
@@ -186,7 +190,7 @@ class WP_Experience_Queue_Object {
 				$instance->id = $data->id;
 				$instance->tries = $data->tries;
 				$instance->last_try_time = $data->last_try_time;
-				$instance->statement = unserialize( $data->statement );
+				$instance->statement = new TinCan\Statement( unserialize( $data->statement ) );
 				$instance->lrs_info = unserialize( $data->lrs_info );
 				$instance->created = $data->created;
 
