@@ -47,17 +47,17 @@ class WP_Experience_Queue_Object {
 		if ( empty( $statement ) || ! $statement instanceof TinCan\Statement ) {
 			return false;
 		}
-		if ( empty( $lrs_info ) || ! isset( $lrs_info[LRS_ENDPOINT] ) || ! isset( $lrs_info[LRS_VERSION] ) || ! isset( $lrs_info[LRS_USERNAME] ) || ! isset( $lrs_info[LRS_PASSWORD] ) ) {
+		if ( empty( $lrs_info ) || ! isset( $lrs_info[WP_Experience_Queue_Object::LRS_ENDPOINT] ) || ! isset( $lrs_info[WP_Experience_Queue_Object::LRS_VERSION] ) || ! isset( $lrs_info[WP_Experience_Queue_Object::LRS_USERNAME] ) || ! isset( $lrs_info[WP_Experience_Queue_Object::LRS_PASSWORD] ) ) {
 			return false;
 		}
 
 		//ok, setup instance info so we can send it back!
 		$instance->statement = $statement;
 		$instance->lrs_info = array(
-				LRS_ENDPOINT => $lrs_info[LRS_ENDPOINT],
-				LRS_VERSION => $lrs_info[LRS_VERSION],
-				LRS_USERNAME => $lrs_info[LRS_USERNAME],
-				LRS_PASSWORD => $lrs_info[LRS_PASSWORD],
+				WP_Experience_Queue_Object::LRS_ENDPOINT => $lrs_info[WP_Experience_Queue_Object::LRS_ENDPOINT],
+				WP_Experience_Queue_Object::LRS_VERSION => $lrs_info[WP_Experience_Queue_Object::LRS_VERSION],
+				WP_Experience_Queue_Object::LRS_USERNAME => $lrs_info[WP_Experience_Queue_Object::LRS_USERNAME],
+				WP_Experience_Queue_Object::LRS_PASSWORD => $lrs_info[WP_Experience_Queue_Object::LRS_PASSWORD],
 			);
 
 		return $instance;
@@ -78,11 +78,35 @@ class WP_Experience_Queue_Object {
 		}
 
 		$this->lrs_info = array(
-				LRS_ENDPOINT => $endpoint,
-				LRS_VERSION => $version,
-				LRS_USERNAME => $username,
-				LRS_PASSWORD => $password,
+				WP_Experience_Queue_Object::LRS_ENDPOINT => $endpoint,
+				WP_Experience_Queue_Object::LRS_VERSION => $version,
+				WP_Experience_Queue_Object::LRS_USERNAME => $username,
+				WP_Experience_Queue_Object::LRS_PASSWORD => $password,
 			);
+	}
+
+	/**
+	 * Simple external helper to create lrs_object that could be passed to create queue object instance
+	 *
+	 * @param String $endpoint
+	 * @param String $version
+	 * @param String $username
+	 * @param String $password
+	 * @return mixed false if some parameter is empty, array otherwise
+	 */
+	public static function helper_create_lrs_info( $endpoint, $version, $username, $password ) {
+		//super basic checks. can add more later.
+		if ( empty( $endpoint ) || empty( $version ) || empty( $username ) || empty( $password ) ) {
+			return false;
+		}
+		$lrs_info = array(
+			WP_Experience_Queue_Object::LRS_ENDPOINT => $endpoint,
+			WP_Experience_Queue_Object::LRS_VERSION => $version,
+			WP_Experience_Queue_Object::LRS_USERNAME => $username,
+			WP_Experience_Queue_Object::LRS_PASSWORD => $password,
+		);
+
+		return $lrs_info;
 	}
 
 	/**
@@ -110,7 +134,7 @@ class WP_Experience_Queue_Object {
 		}
 
 		//setup a queue object using the row data
-		$instance = self::with_db_row_object( $row );
+		$instance = self::with_db_row_object( $table_name, $row );
 
 		//now delete the row we pulled
 		$deleted = $wpdb->delete( $table_name, array( 'id' => $row->id ), array( '%d' ) );
@@ -158,14 +182,14 @@ class WP_Experience_Queue_Object {
 		global $wpdb;
 		$table_name = $this->table_name;
 
-		$statement = serialize( $this->statement->asVersion( $this->lrs_info[LRS_VERSION] ) );
+		$statement = serialize( $this->statement->asVersion( $this->lrs_info[WP_Experience_Queue_Object::LRS_VERSION] ) );
 		$lrs_info = serialize( $this->lrs_info );
 		$ltt = $this->last_try_time;
 		$tries = $this->tries;
 
-		$sql = "INSERT INTO {$table_name}
-						('tries', 'last_try_time', 'statement', 'lrs_info')
-						VALUES ('%d', '%d', '%s', '%s')";
+		$sql = "INSERT INTO {$table_name} (tries, last_try_time, statement, lrs_info)
+					VALUES ('%d', '%s', '%s', '%s')";
+
 		if ( $prepared ) {
 			return $wpdb->prepare( $sql,
 				$tries,
@@ -184,8 +208,8 @@ class WP_Experience_Queue_Object {
 	 * @param  stdObject $data probably created from wpdb->get_row()
 	 * @return mixed WP_Experience_Queue_Object if works, false otherwise
 	 */
-	private static function with_db_row_object( $data ) {
-		$instance = new self();
+	public static function with_db_row_object( $table_name, $data ) {
+		$instance = new self( $table_name );
 		if ( is_object( $data ) ) {
 				$instance->id = $data->id;
 				$instance->tries = $data->tries;

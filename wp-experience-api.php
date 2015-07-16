@@ -50,7 +50,6 @@ class WP_Experience_API {
 	 * @return void
 	 */
 	public static function init() {
-
 		// need to check for php version!  min 5.4
 		if ( ! WP_Experience_API::check_php_version() ) {
 			deactivate_plugins( plugin_basename( __FILE__ ) );
@@ -141,7 +140,8 @@ class WP_Experience_API {
 		}
 
 		//deal with creating a cron function that sends stuff from the queue
-		wp_schedule_event( time(), WP_XAPI_QUEUE_RECURRANCE, array( 'WP_Experience_API', 'wpxapi_run_queue' ) );
+		wp_schedule_event( time(), WP_XAPI_QUEUE_RECURRANCE, 'wpxapi_run_queue' );
+		add_action( 'wpxapi_run_queue', array( __CLASS__, 'wpxapi_run_queue' ) );
 	}
 
 	/**
@@ -275,13 +275,13 @@ class WP_Experience_API {
 			if ( ! empty( WP_Experience_API::$lrs1 ) && 'No' === WP_Experience_API::$site_options['wpxapi_network_lrs_stop_network_level_only'] ) {
 				$response = WP_Experience_API::$lrs1->saveStatement( $data );
 
-				if ( false === boolval( $response->success ) ) {
+				if ( false === (bool) $response->success ) {
 					//since it fails, we add to queue!
-					$lrs_info = array(
-						'endpoint' => WP_Experience_API::$site_options['wpxapi_network_lrs_url'],
-						'version' => WP_XAPI_DEFAULT_XAPI_VERSION,
-						'username' => WP_Experience_API::$site_options['wpxapi_network_lrs_username'],
-						'password' => WP_Experience_API::$site_options['wpxapi_network_lrs_password'],
+					$lrs_info = WP_Experience_Queue_Object::helper_create_lrs_info(
+						WP_Experience_API::$site_options['wpxapi_network_lrs_url'],
+						WP_XAPI_DEFAULT_XAPI_VERSION,
+						WP_Experience_API::$site_options['wpxapi_network_lrs_username'],
+						WP_Experience_API::$site_options['wpxapi_network_lrs_password']
 					);
 					WP_Experience_API::wpxapi_queue_enqueue( $data, $lrs_info );
 				}
@@ -297,13 +297,13 @@ class WP_Experience_API {
 			);
 			$response2 = $lrs2->saveStatement( $data );
 
-			if ( false === boolval( $response2->success ) ) {
+			if ( false === (bool) $response2->success ) {
 				//failed, so enqueue!
-				$lrs_info = array(
-					'endpoint' => WP_Experience_API::$options['wpxapi_lrs_url'],
-					'version' => WP_XAPI_DEFAULT_XAPI_VERSION,
-					'username' => WP_Experience_API::$options['wpxapi_lrs_username'],
-					'password' => WP_Experience_API::$options['wpxapi_lrs_password'],
+				$lrs_info = WP_Experience_Queue_Object::helper_create_lrs_info(
+					WP_Experience_API::$options['wpxapi_lrs_url'],
+					WP_XAPI_DEFAULT_XAPI_VERSION,
+					WP_Experience_API::$options['wpxapi_lrs_username'],
+					WP_Experience_API::$options['wpxapi_lrs_password']
 				);
 				WP_Experience_API::wpxapi_queue_enqueue( $data, $lrs_info );
 			}
@@ -716,7 +716,7 @@ class WP_Experience_API {
 				);
 				$response = $lrs->saveStatement( $data );
 	
-				if ( false === boolval( $response->success ) ) {
+				if ( false === (bool) $response->success ) {
 					//failed, so enqueue again!
 					WP_Experience_API::wpxapi_queue_enqueue( $queue_obj );
 				}
@@ -739,7 +739,7 @@ class WP_Experience_API {
 		$return_value = $wpdb->get_var( $sql );
 
 		if ( ! $count ) {
-			$return_value = boolval( $return_value );
+			$return_value = (bool) $return_value;
 		}
 		
 		return $return_value;
