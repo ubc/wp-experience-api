@@ -677,10 +677,15 @@ class WP_Experience_API {
 	 * @return boolean
 	 */
 	public static function wpxapi_run_queue() {
-		if ( ! WP_Experience_API::wpxapi_queue_is_empty() ) {
+		if ( WP_Experience_API::wpxapi_queue_is_not_empty() ) {
 			$past_retry_time_limit = false;
-			$count = WP_Experience_API::wpxapi_queue_is_empty( true );
+			$count = WP_Experience_API::wpxapi_queue_is_not_empty( true );
 			$i = 0; //counter
+
+			//sanity check JUST to make sure it can/will end the loop
+			if ( 0 >= $count ) {
+				return;
+			}
 			
 			while ( $i < $count && ! $past_retry_time_limit ) {
 				$i++;
@@ -714,11 +719,10 @@ class WP_Experience_API {
 					$lrs_info['username'],
 					$lrs_info['password']
 				);
-				$response = $lrs->saveStatement( $data );
-	
+				$response = $lrs->saveStatement( $queue_obj->statement );
 				if ( false === (bool) $response->success ) {
-					//failed, so enqueue again!
-					WP_Experience_API::wpxapi_queue_enqueue( $queue_obj );
+					//failed, so enqueue!
+					WP_Experience_API::wpxapi_queue_enqueue( $queue_obj, $lrs_info );
 				}
 			}
 		}
@@ -730,7 +734,7 @@ class WP_Experience_API {
 	 * @param boolean if true, then returns number, else returns boolean
 	 * @return mixed if $count == true, return count, else return boolean
 	 */
-	public static function wpxapi_queue_is_empty( $count = false ) {
+	public static function wpxapi_queue_is_not_empty( $count = false ) {
 		global $wpdb;
 		$return_value = null;
 		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
