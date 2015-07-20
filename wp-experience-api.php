@@ -14,11 +14,8 @@
 /* Helpful documentation at
  * http://tincanapi.com/tech-overview/
  * NOTE:
- * - to make work:
- * - - need to set correct username and pasword for LRS in wp-experience-api-config.php
- * - - should also add a slug and hooks in trigers.php to make it trigger on whatever action.  add hooks there.
  * - can run without network activation on a per site basis as well as network wide. will give warning if network activated but no saved network options
- * - to make work in MU folder, just copy the plugin directory to the wp-content/mu-plugins folder, then copy wp-experience-api-mu-loader.php to the outside of hte folder directly under the mu-plugins folder.
+ * - need to double check later the class's method/property visiblity for better security... just in case!
  */
 //basic configuration constants used throughout the plugin
 use TinCan\Activity;
@@ -43,6 +40,44 @@ class WP_Experience_API {
 		'JSON_API' => 'http://wordpress.org/plugins/json-api/',
 		'BadgeOS_Open_Badges_Issuer_AddOn' => 'https://github.com/ubc/open-badges-issuer-addon',
 	);
+	//constants for managing creation of LRSes, cause we can't store password/username in DB.
+	const WPXAPI_NETWORK_LRS = 1;
+	const WPXAPI_SITE_LRS = 2;
+
+	/**
+	 * creates TinCan\RemoteLRS instance based which one wanted
+	 *
+	 * @param Integer $lrs
+	 * @return Mixed <boolean, \TinCan\RemoteLRS>
+	 */
+	private static function setup_lrs( $lrs ) {
+		$return_lrs = false;
+
+		//let's make sure we have options setup
+		self::setup_options();
+
+		//let's do it!
+		switch ( $lrs ) {
+			case WP_Experience_API::WPXAPI_NETWORK_LRS:
+				$return_lrs = new TinCan\RemoteLRS(
+					self::$site_options['wpxapi_network_lrs_url'],
+					WP_XAPI_DEFAULT_XAPI_VERSION,
+					self::$site_options['wpxapi_network_lrs_username'],
+					self::$site_options['wpxapi_network_lrs_password']
+				);
+				break;
+			case WP_Experience_API::WPXAPI_SITE_LRS:
+				$return_lrs = new TinCan\RemoteLRS(
+					self::$options['wpxapi_lrs_url'],
+					WP_XAPI_DEFAULT_XAPI_VERSION,
+					self::$options['wpxapi_lrs_username'],
+					self::$options['wpxapi_lrs_password']
+				);
+				break;
+		}
+
+		return $return_lrs;
+	}
 
 	/**
 	 * Initialization function
@@ -59,22 +94,17 @@ class WP_Experience_API {
 			}
 		}
 
+		//get options
+		self::setup_options();
+
+		//create LRS
 		if ( is_multisite() && ! function_exists( 'is_plugin_active_for_network' ) ) {
 			require_once( ABSPATH . '/wp-admin/includes/plugin.php' );
 		}
-
-		//get options
-		WP_Experience_API::$options = WP_Experience_API::wpxapi_get_class_option( false );
-		WP_Experience_API::$site_options = WP_Experience_API::wpxapi_get_class_option( true ); //get_site_option( 'wpxapi_network_settings' );
 		if ( ( is_multisite() && is_plugin_active_for_network( 'wp-experience-api/wp-experience-api.php' ) ) || defined( 'WP_XAPI_MU_MODE' ) ) {
 			if ( ! empty( WP_Experience_API::$site_options ) || ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_password'] ) && ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_username'] ) && ! empty( WP_Experience_API::$site_options['wpxapi_network_lrs_url'] ) ) {
 
-				WP_Experience_API::$lrs1 = new TinCan\RemoteLRS(
-					WP_Experience_API::$site_options['wpxapi_network_lrs_url'],
-					WP_XAPI_DEFAULT_XAPI_VERSION,
-					WP_Experience_API::$site_options['wpxapi_network_lrs_username'],
-					WP_Experience_API::$site_options['wpxapi_network_lrs_password']
-				);
+				self::$lrs1 = self::setup_lrs( WP_Experience_API::WPXAPI_NETWORK_LRS );
 			} else {
 				add_action( 'admin_notices', array( 'WP_Experience_API', 'config_unset_notice' ) );
 				error_log( 'Please tell Network Administrator to set the default username/password/URL of the LRS (for plugin: WP ExperienceA API)' );
@@ -117,7 +147,7 @@ class WP_Experience_API {
 		global $wpdb;
 
 		//use base_prefix so it will be on global regardless of mu or single site
-		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
+		$table_name = WP_Experience_Queue_Object::get_queue_table_name();
 		if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table_name}'" ) != $table_name ) {
 			if ( ! empty( $wpdb->charset ) ) {
 				$charset_collate = "DEFAULT CHARACTER SET {$wpdb->charset}";
@@ -130,7 +160,7 @@ class WP_Experience_API {
 				tries tinyint UNSIGNED NOT NULL DEFAULT '1',
 				last_try_time datetime,
 				statement text NOT NULL,
-				lrs_info text NOT NULL,
+				lrs_info tinyint NOT NULL,
 				created timestamp DEFAULT CURRENT_TIMESTAMP,
 				PRIMARY KEY (id)
 			) {$charset_collate};";
@@ -277,35 +307,18 @@ class WP_Experience_API {
 
 				if ( false === (bool) $response->success ) {
 					//since it fails, we add to queue!
-					$lrs_info = WP_Experience_Queue_Object::helper_create_lrs_info(
-						WP_Experience_API::$site_options['wpxapi_network_lrs_url'],
-						WP_XAPI_DEFAULT_XAPI_VERSION,
-						WP_Experience_API::$site_options['wpxapi_network_lrs_username'],
-						WP_Experience_API::$site_options['wpxapi_network_lrs_password']
-					);
-					WP_Experience_API::wpxapi_queue_enqueue( $data, $lrs_info );
+					WP_Experience_API::wpxapi_queue_enqueue( $data, WP_Experience_API::WPXAPI_NETWORK_LRS );
 				}
 			}
 		}
 
 		if ( ! empty( WP_Experience_API::$options['wpxapi_lrs_url'] ) && ! empty( WP_Experience_API::$options['wpxapi_lrs_username'] ) && ! empty( WP_Experience_API::$options['wpxapi_lrs_password'] ) ) {
-			$lrs2 = new TinCan\RemoteLRS(
-				WP_Experience_API::$options['wpxapi_lrs_url'],
-				WP_XAPI_DEFAULT_XAPI_VERSION,
-				WP_Experience_API::$options['wpxapi_lrs_username'],
-				WP_Experience_API::$options['wpxapi_lrs_password']
-			);
+			$lrs2 = self::setup_lrs( WP_Experience_API::WPXAPI_SITE_LRS );
 			$response2 = $lrs2->saveStatement( $data );
 
 			if ( false === (bool) $response2->success ) {
 				//failed, so enqueue!
-				$lrs_info = WP_Experience_Queue_Object::helper_create_lrs_info(
-					WP_Experience_API::$options['wpxapi_lrs_url'],
-					WP_XAPI_DEFAULT_XAPI_VERSION,
-					WP_Experience_API::$options['wpxapi_lrs_username'],
-					WP_Experience_API::$options['wpxapi_lrs_password']
-				);
-				WP_Experience_API::wpxapi_queue_enqueue( $data, $lrs_info );
+				WP_Experience_API::wpxapi_queue_enqueue( $data, WP_Experience_API::WPXAPI_SITE_LRS );
 			}
 		}
 
@@ -643,7 +656,7 @@ class WP_Experience_API {
 		} else {
 			// get site level options
 			if ( null === WP_Experience_API::$options ) {
-				static::$options = WP_Experience_API::wpxapi_get_blog_option( 'wpxapi_settings' );
+				static::$options = self::wpxapi_get_blog_option( 'wpxapi_settings' );
 			}
 
 			return WP_Experience_API::$options;
@@ -657,12 +670,20 @@ class WP_Experience_API {
 	 * @param $option_name String name of option wanted at single blog level
 	 *
 	 */
-	public static function wpxapi_get_blog_option( $option_name ) {
+	private static function wpxapi_get_blog_option( $option_name ) {
 		if ( function_exists( 'get_blog_option' ) ) {
 			return get_blog_option( null, $option_name );
 		} else {
 			return get_option( $option_name );
 		}
+	}
+
+	/**
+	 * setup options for the class
+	 */
+	private static function setup_options() {
+		self::$options = WP_Experience_API::wpxapi_get_class_option( false );
+		self::$site_options = WP_Experience_API::wpxapi_get_class_option( true );
 	}
 
 	/**
@@ -708,17 +729,12 @@ class WP_Experience_API {
 				$last_try_time = intval( strtotime( $queue_obj->last_try_time ) );
 				$next_retry_time = $last_try_time + pow( 2, intval( $queue_obj->tries ) );
 				if ( time() < $next_retry_time ) {
+					//not time to try yet, so skip trying.  next time cron runs, it should check this again.
 					continue;
 				}
 
 				//try sending the statement!
-				$lrs_info = $queue_obj->lrs_info;
-				$lrs = new TinCan\RemoteLRS(
-					$lrs_info['endpoint'],
-					$lrs_info['version'],
-					$lrs_info['username'],
-					$lrs_info['password']
-				);
+				$lrs = self::setup_lrs( $queue_obj->lrs_info );
 				$response = $lrs->saveStatement( $queue_obj->statement );
 				if ( false === (bool) $response->success ) {
 					//failed, so enqueue!
@@ -737,7 +753,7 @@ class WP_Experience_API {
 	public static function wpxapi_queue_is_not_empty( $count = false ) {
 		global $wpdb;
 		$return_value = null;
-		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
+		$table_name = WP_Experience_Queue_Object::get_queue_table_name();
 
 		$sql = "SELECT COUNT(*) FROM $table_name";
 		$return_value = $wpdb->get_var( $sql );
@@ -759,9 +775,8 @@ class WP_Experience_API {
 	 * @return Boolean true if it worked, false otherwise
 	 */
 	public static function wpxapi_queue_enqueue( $statement, $lrs_info ) {
-		global $wpdb;
 		$queue = null;
-		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
+		$table_name = WP_Experience_Queue_Object::get_queue_table_name();
 
 		//create queue instance based on what's passed in
 		if ( $statement instanceof TinCan\Statement ) {
@@ -769,7 +784,7 @@ class WP_Experience_API {
 			if ( empty( $lrs_info ) ) {
 				return false;
 			}
-			$queue = WP_Experience_Queue_Object::with_statement_lrs_info( $table_name, $statement, $lrs_info );
+			$queue = WP_Experience_Queue_Object::with_statement_lrs_info( $statement, $lrs_info );
 		} else if ( $statement instanceof WP_Experience_Queue_Object ){
 			 $statement->tried_sending_again();
 			 $queue = $statement;
@@ -785,10 +800,7 @@ class WP_Experience_API {
 	 * @return TinCan\Statement
 	 */
 	public static function wpxapi_queue_dequeue() {
-		global $wpdb;
-		$table_name = esc_sql( $wpdb->base_prefix . WP_XAPI_TABLE_NAME );
-
-		$queue_obj = WP_Experience_Queue_Object::get_row( $table_name );
+		$queue_obj = WP_Experience_Queue_Object::get_row();
 
 		return $queue_obj;
 	}

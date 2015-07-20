@@ -1,6 +1,11 @@
 <?php
 /**
  * Think of this class as a "queue row object" class
+ *
+ * NOTES:
+ * - this class might have been better as an inner class of WP_Experience_API, but since php doesn't do inner classes, we split it off.
+ * - this class is intimately linked with WP_Experience_API...
+ * - need to think through and clean up which class has what responsibility, etc....
  */
 class WP_Experience_Queue_Object {
 	const MYSQL_DATETIME_FORMAT = 'Y-m-d H:i:s';
@@ -13,18 +18,24 @@ class WP_Experience_Queue_Object {
 	public $tries = 1;
 	public $last_try_time = null;
 	public $statement = null;
-	public $lrs_info = '';
+	public $lrs_info = -1;
 	public $created = null;
 
 	/**
 	 * Creates a WP_Experience_Queue_Object instance minimally requires table_name
 	 */
-	public function __construct( $table_name ) {
-		if ( empty( $table_name ) ) {
-			throw new Exception( 'Queue table name is empty!' );
-		}
-		$this->table_name = $table_name;
+	public function __construct() {
+		$this->table_name = self::get_queue_table_name();
 		$this->last_try_time = date( WP_Experience_Queue_Object::MYSQL_DATETIME_FORMAT );
+	}
+
+	public static function get_queue_table_name() {
+		global $wpdb;
+
+		//hardcoded tablename for security......  :-(
+		$table_name = $wpdb->base_prefix . esc_sql( WP_XAPI_TABLE_NAME );
+
+		return $table_name;
 	}
 
 	/**
@@ -35,9 +46,9 @@ class WP_Experience_Queue_Object {
 	 * @param  Array $lrs_info LRS info so that we can know where to send statement to
 	 * @return WP_Experience_Queue_Object
 	 */
-	public static function with_statement_lrs_info( $table_name, $statement, $lrs_info ) {
+	public static function with_statement_lrs_info( $statement, $lrs_info ) {
 		try {
-			$instance = new self( $table_name );
+			$instance = new self();
 		} catch ( Exception $e ) {
 			error_log( 'Exception thrown: ' . $e->getMessage() );
 			return false;
@@ -47,66 +58,15 @@ class WP_Experience_Queue_Object {
 		if ( empty( $statement ) || ! $statement instanceof TinCan\Statement ) {
 			return false;
 		}
-		if ( empty( $lrs_info ) || ! isset( $lrs_info[WP_Experience_Queue_Object::LRS_ENDPOINT] ) || ! isset( $lrs_info[WP_Experience_Queue_Object::LRS_VERSION] ) || ! isset( $lrs_info[WP_Experience_Queue_Object::LRS_USERNAME] ) || ! isset( $lrs_info[WP_Experience_Queue_Object::LRS_PASSWORD] ) ) {
+		if ( (int) $lrs_info !== $lrs_info ) {
 			return false;
 		}
 
 		//ok, setup instance info so we can send it back!
 		$instance->statement = $statement;
-		$instance->lrs_info = array(
-				WP_Experience_Queue_Object::LRS_ENDPOINT => $lrs_info[WP_Experience_Queue_Object::LRS_ENDPOINT],
-				WP_Experience_Queue_Object::LRS_VERSION => $lrs_info[WP_Experience_Queue_Object::LRS_VERSION],
-				WP_Experience_Queue_Object::LRS_USERNAME => $lrs_info[WP_Experience_Queue_Object::LRS_USERNAME],
-				WP_Experience_Queue_Object::LRS_PASSWORD => $lrs_info[WP_Experience_Queue_Object::LRS_PASSWORD],
-			);
+		$instance->lrs_info = $lrs_info;
 
 		return $instance;
-	}
-
-	/**
-	 * setter for lrs_info property
-	 *
-	 * @param String $endpoint LRS endpoint
-	 * @param String $version  xAPI version
-	 * @param String $username lrs basic auth username
-	 * @param String $password lrs basic auth password
-	 */
-	public function set_lrs_info( $endpoint, $version, $username, $password ) {
-		//super basic checks. can add more later.
-		if ( empty( $endpoint ) || empty( $version ) || empty( $username ) || empty( $password ) ) {
-			return false;
-		}
-
-		$this->lrs_info = array(
-				WP_Experience_Queue_Object::LRS_ENDPOINT => $endpoint,
-				WP_Experience_Queue_Object::LRS_VERSION => $version,
-				WP_Experience_Queue_Object::LRS_USERNAME => $username,
-				WP_Experience_Queue_Object::LRS_PASSWORD => $password,
-			);
-	}
-
-	/**
-	 * Simple external helper to create lrs_object that could be passed to create queue object instance
-	 *
-	 * @param String $endpoint
-	 * @param String $version
-	 * @param String $username
-	 * @param String $password
-	 * @return mixed false if some parameter is empty, array otherwise
-	 */
-	public static function helper_create_lrs_info( $endpoint, $version, $username, $password ) {
-		//super basic checks. can add more later.
-		if ( empty( $endpoint ) || empty( $version ) || empty( $username ) || empty( $password ) ) {
-			return false;
-		}
-		$lrs_info = array(
-			WP_Experience_Queue_Object::LRS_ENDPOINT => $endpoint,
-			WP_Experience_Queue_Object::LRS_VERSION => $version,
-			WP_Experience_Queue_Object::LRS_USERNAME => $username,
-			WP_Experience_Queue_Object::LRS_PASSWORD => $password,
-		);
-
-		return $lrs_info;
 	}
 
 	/**
@@ -116,13 +76,9 @@ class WP_Experience_Queue_Object {
 	 *
 	 * @return mixed if no rows, return false, else a queue object
 	 */
-	public static function get_row( $table_name ) {
+	public static function get_row() {
 		global $wpdb;
-
-		//simple check to make sure that table_name is not emtpy
-		if ( empty( $table_name ) ) {
-			return false;
-		}
+		$table_name = self::get_queue_table_name();
 
 		//query to get row!
 		$query = "SELECT * FROM {$table_name} ORDER BY id ASC limit 1";
@@ -134,10 +90,12 @@ class WP_Experience_Queue_Object {
 		}
 
 		//setup a queue object using the row data
-		$instance = self::with_db_row_object( $table_name, $row );
+		$instance = self::with_db_row_object( $row );
 
 		//now delete the row we pulled
-		$deleted = $wpdb->delete( $table_name, array( 'id' => $row->id ), array( '%d' ) );
+		if ( false !== $instance ) {
+			$deleted = $wpdb->delete( $table_name, array( 'id' => $row->id ), array( '%d' ) );
+		}
 
 		if ( empty( $deleted ) ) {
 			error_log( 'Something is wrong.  Why can we not delete the row after we pulled it?' );
@@ -153,7 +111,6 @@ class WP_Experience_Queue_Object {
 	 */
 	public function save_row() {
 		global $wpdb;
-		$table_name = $this->table_name;
 
 		//get sql statement for inserting into queue
 		$sql = $this->generate_insert_sql();
@@ -180,15 +137,15 @@ class WP_Experience_Queue_Object {
 	 */
 	private function generate_insert_sql( $prepared = true ) {
 		global $wpdb;
-		$table_name = $this->table_name;
+		$table_name = self::get_queue_table_name();
 
 		$statement = serialize( $this->statement->asVersion( $this->lrs_info[WP_Experience_Queue_Object::LRS_VERSION] ) );
-		$lrs_info = serialize( $this->lrs_info );
+		$lrs_info = $this->lrs_info;
 		$ltt = $this->last_try_time;
 		$tries = $this->tries;
 
 		$sql = "INSERT INTO {$table_name} (tries, last_try_time, statement, lrs_info)
-					VALUES ('%d', '%s', '%s', '%s')";
+					VALUES ('%d', '%s', '%s', '%d')";
 
 		if ( $prepared ) {
 			return $wpdb->prepare( $sql,
@@ -208,14 +165,14 @@ class WP_Experience_Queue_Object {
 	 * @param  stdObject $data probably created from wpdb->get_row()
 	 * @return mixed WP_Experience_Queue_Object if works, false otherwise
 	 */
-	public static function with_db_row_object( $table_name, $data ) {
-		$instance = new self( $table_name );
+	public static function with_db_row_object( $data ) {
+		$instance = new self();
 		if ( is_object( $data ) ) {
 				$instance->id = $data->id;
 				$instance->tries = $data->tries;
 				$instance->last_try_time = $data->last_try_time;
 				$instance->statement = new TinCan\Statement( unserialize( $data->statement ) );
-				$instance->lrs_info = unserialize( $data->lrs_info );
+				$instance->lrs_info = $data->lrs_info;
 				$instance->created = $data->created;
 
 				return $instance;
