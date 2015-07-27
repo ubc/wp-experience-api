@@ -169,9 +169,27 @@ class WP_Experience_API {
 			dbDelta( $sql );
 		}
 
-		//deal with creating a cron function that sends stuff from the queue
-		wp_schedule_event( time(), WP_XAPI_QUEUE_RECURRANCE, 'wpxapi_run_queue' );
-		add_action( 'wpxapi_run_queue', array( __CLASS__, 'wpxapi_run_queue' ) );
+		/**
+		 * We need to create a wp_cron, but we only want it to run from one spot.
+		 */
+		if ( is_main_site() ) {
+			if ( false === wp_get_schedule( 'wpxapi_run_the_queue' ) ) {
+				//we check first BEFORE we schedule. otherwise, we get multiple copies!we
+				$delay = 1 * 60 * 60;	//number of seconds before we initially run the cron
+				wp_schedule_event( time() + $delay, WP_XAPI_QUEUE_RECURRANCE, 'wpxapi_run_thequeue' );
+			}
+			add_action( 'wpxapi_run_the_queue', array( __CLASS__, 'wpxapi_run_the_queue' ) );
+		}
+		
+		/**
+		 * We need to remove legacy wp_cron 'wpxapi_run_queue'.
+		 * 
+		 * Issue was that in 1.0.4, the plugin scheduled EVERY VISIT on EVERY SITE instead of
+		 * simulating cron where it is run only on one site and checked whether it's set or not (see above!)
+		 */
+		if ( false !== wp_get_schedule( 'wpxapi_run_queue' ) ) {
+			wp_clear_scheduled_hook( 'wpxapi_run_queue' );
+		}
 	}
 
 	/**
@@ -697,7 +715,7 @@ class WP_Experience_API {
 	 *
 	 * @return boolean
 	 */
-	public static function wpxapi_run_queue() {
+	public static function wpxapi_run_the_queue() {
 		if ( WP_Experience_API::wpxapi_queue_is_not_empty() ) {
 			$past_retry_time_limit = false;
 			$count = WP_Experience_API::wpxapi_queue_is_not_empty( true );
