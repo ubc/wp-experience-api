@@ -85,7 +85,7 @@ WP_Experience_API::register( 'earned_badges', array(
 						)
 					)
 			),
-			'timestamp_raw' => date( DATE_ISO8601 )
+			'timestamp_raw' => date( 'c' )
 		);
 		return $statement;
 	}
@@ -145,7 +145,7 @@ WP_Experience_API::register( 'page_views', array(
 				),
 				'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown'
 			),
-			'timestamp_raw' => date( DATE_ISO8601 )
+			'timestamp_raw' => date( 'c' )
 		);
 
 		$user = get_current_user_id();
@@ -229,7 +229,7 @@ WP_Experience_API::register( 'give_comments', array(
 			'result_raw' => array(
 				'response' => $comment->comment_content,
 			),
-			'timestamp_raw' => date( DATE_ISO8601 )
+			'timestamp_raw' => date( 'c' )
 		);
 
 		return $statement;
@@ -344,7 +344,7 @@ WP_Experience_API::register( 'pulse_press_voting', array(
 				),
 				'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown',
 			),
-			'timestamp_raw' => date( DATE_ISO8601 )
+			'timestamp_raw' => date( 'c' )
 		);
 
 		return $statement;
@@ -476,7 +476,7 @@ WP_Experience_API::register( 'transition_post', array(
 			'result_raw' => array(
 				'response' => $current_post->post_content,
 			),
-			'timestamp_raw' => date( DATE_ISO8601 )
+			'timestamp_raw' => date( 'c' )
 		);
 
 		//now get description and insert if there is something
