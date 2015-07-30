@@ -176,8 +176,9 @@ class WP_Experience_API {
 			if ( false === wp_get_schedule( 'wpxapi_run_the_queue' ) ) {
 				//we check first BEFORE we schedule. otherwise, we get multiple copies!we
 				$delay = 1 * 60 * 60;	//number of seconds before we initially run the cron
-				wp_schedule_event( time() + $delay, WP_XAPI_QUEUE_RECURRANCE, 'wpxapi_run_thequeue' );
+				wp_schedule_event( time() + $delay, WP_XAPI_QUEUE_RECURRANCE, 'wpxapi_run_the_queue' );
 			}
+			//we check if main site first so that ONLY the main site will be able to do the run queue thing
 			add_action( 'wpxapi_run_the_queue', array( __CLASS__, 'wpxapi_run_the_queue' ) );
 		}
 		
