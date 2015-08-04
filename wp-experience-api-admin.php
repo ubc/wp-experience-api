@@ -78,6 +78,9 @@ class WP_Experience_API_Admin {
 		if ( is_network_admin() ) {
 			new WP_Experience_API_Network_Admin();
 		}
+
+		add_action( 'wp_ajax_run_queue', array( __CLASS__, 'wp_xapi_check_and_run_queue' ) );
+		add_action( 'admin_footer',  array( __CLASS__, 'wp_xapi_add_js' ) );
 	}
 
 	/**
@@ -132,6 +135,17 @@ class WP_Experience_API_Admin {
 			array( $this, 'wp_xapi_section_callback' ),
 			'wpxapi'
 		);
+
+		//since this is triggering running of the queue, ONLY admins/Superadmins should see this option.
+		if ( is_super_admin() ) {
+			add_settings_field(
+				'wpxapi_run_queue',
+				__( 'Run xAPI Queue', 'wpxapi' ),
+				array( $this, 'wp_xapi_run_xapi_queue_render' ),
+				'wpxapi',
+				'wpxapi_settings_section'
+			);
+		}
 
 		add_settings_field(
 			'wpxapi_pages',
@@ -272,6 +286,14 @@ class WP_Experience_API_Admin {
 		<?php
 	}
 
+	public function wp_xapi_run_xapi_queue_render() {
+		$count = WP_Experience_API::wpxapi_queue_is_not_empty( true );
+		?>
+			<input type='button' class='button button-primary' id='wpxapi_run_queue' value="<?php echo __( 'Run Queue' );?>"><br>
+			<div class="help-div"><?php echo __( 'Count of xAPI queue entries: ' , 'wpxapi' ) .'<span id="wpxapi_run_queue_count">' . $count . '</span>'; ?></div>
+		<?php
+	}
+
 	/**
 	 * Outputs page view tracking options
 	 *
@@ -378,6 +400,9 @@ class WP_Experience_API_Admin {
 		<?php
 	}
 
+	/**
+	 * Outputs lrs password field
+	 */
 	public function wp_xapi_lrs_password_render() {
 		?>
 		<input type='text' name='wpxapi_settings[wpxapi_lrs_password]' value='<?php echo esc_html( $this->options['wpxapi_lrs_password'] ); ?>'>
@@ -474,6 +499,52 @@ class WP_Experience_API_Admin {
 	}
 
 	/**
+	 * runs the queue and returns json response with count and message.
+	 */
+	public static function wp_xapi_check_and_run_queue() {
+		check_ajax_referer( 'wp_ajax_run_queue', 'security' );
+		$finished = WP_Experience_API::wpxapi_run_the_queue();
+		$count = array('count' => 0, 'message' => 'The queue had issues and could not run.');
+		if ( $finished ) {
+			$count['count'] = WP_Experience_API::wpxapi_queue_is_not_empty( true );
+			$count['message'] = __( 'The queue ran successfully!' );
+		}
+
+		echo json_encode( $count );
+
+		wp_die();
+	}
+
+	/**
+	 * function to output simple javascript.
+	 */
+	public static function wp_xapi_add_js() {
+		$nonce = wp_create_nonce( 'wp_ajax_run_queue' );
+		$url = ( is_network_admin() ) ? network_admin_url( 'admin-ajax.php' ) : admin_url( 'admin-ajax.php' );
+		if ( is_network_admin() || is_admin() ) {
+			?>
+				<script type='text/javascript' id='holdemhat'>
+					jQuery(document).ready(function() {
+						var data = {
+							'action': 'run_queue',
+							'security': '<?php echo $nonce; ?>'
+						};
+						var network_ajax_url = '<?php echo $url; ?>';
+
+						jQuery( '#wpxapi_run_queue' ).on('click', function() {
+							jQuery.post(network_ajax_url, data, function(response) {
+								jQuery( '#wpxapi_run_queue_count' ).text( response.count );
+								alert( response.message );
+							});
+							return false;
+						});
+					});
+				</script>
+			<?php
+		}
+	}
+
+	/**
 	 * Currently unused helper function to convert between int and page options
 	 *
 	 * @param  int $page_option_int
@@ -531,6 +602,7 @@ class WP_Experience_API_Network_Admin {
 		'1' => 'Account',
 		'2' => 'Email',
 	);
+
 	/**
 	 * Constructor
 	 */
@@ -545,6 +617,8 @@ class WP_Experience_API_Network_Admin {
 
 			$this->setup_options();
 		}
+		add_action( 'wp_ajax_run_queue', array( 'WP_Experience_API_Admin', 'wp_xapi_check_and_run_queue' ) );
+		add_action( 'admin_footer',  array( 'WP_Experience_API_Admin', 'wp_xapi_add_js' ) );
 	}
 
 	/**
@@ -606,6 +680,14 @@ class WP_Experience_API_Network_Admin {
 			__( 'WP xAPI Network Settings', 'wpxapi' ),
 			array( $this, 'wp_xapi_network_section_callback' ),
 			'wpxapi_network'
+		);
+		//yes, I know. I stuffed the logic and render inside the regular admin class....
+		add_settings_field(
+			'wpxapi_run_queue',
+			__( 'Run xAPI Queue', 'wpxapi' ),
+			array( 'WP_Experience_API_Admin', 'wp_xapi_run_xapi_queue_render' ),
+			'wpxapi_network',
+			'wpxapi_settings_section_lrs'
 		);
 		add_settings_field(
 			'wpxapi_network_lrs_stop_all',

@@ -125,7 +125,7 @@ class WP_Experience_Queue_Object {
 	 * @return void returns nothing
 	 */
 	public function tried_sending_again() {
-		$this->tries = $this->tries++;
+		$this->tries = $this->tries + 1;
 		$this->last_try_time = date( WP_Experience_Queue_Object::MYSQL_DATETIME_FORMAT );
 	}
 
