@@ -226,11 +226,14 @@ WP_Experience_API::register( 'give_comments', array(
 				),
 				'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown',
 			),
-			'result_raw' => array(
-				'response' => $comment->comment_content,
-			),
 			'timestamp_raw' => date( 'c' )
 		);
+
+		//we need to check then potentially add... in case something like empty comments... if possible.
+		$comment_content = $comment->comment_content;
+		if ( ! empty( $comment_content ) ) {
+			$statement['result_raw']['response'] = $comment_content;
+		}
 
 		return $statement;
 	}
@@ -473,9 +476,6 @@ WP_Experience_API::register( 'transition_post', array(
 				),
 				'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown'
 			),
-			'result_raw' => array(
-				'response' => $current_post->post_content,
-			),
 			'timestamp_raw' => date( 'c' )
 		);
 
@@ -488,6 +488,10 @@ WP_Experience_API::register( 'transition_post', array(
 		}
 		if ( ! empty( $description ) ) {
 			$statement['object']['definition']['description'] = array( 'en-US' => $description );
+		}
+		$result = $current_post->post_content;
+		if ( ! empty( $result ) ) {
+			$statement['result_raw']['response']= $result;
 		}
 
 		return $statement;
