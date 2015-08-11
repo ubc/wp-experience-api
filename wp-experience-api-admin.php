@@ -289,8 +289,8 @@ class WP_Experience_API_Admin {
 	public function wp_xapi_run_xapi_queue_render() {
 		$count = WP_Experience_API::wpxapi_queue_is_not_empty( true );
 		?>
-			<input type='button' class='button button-primary' id='wpxapi_run_queue' value="<?php echo __( 'Run Queue' );?>"><br>
-			<div class="help-div"><?php echo __( 'Count of xAPI queue entries: ' , 'wpxapi' ) .'<span id="wpxapi_run_queue_count">' . $count . '</span>'; ?></div>
+			<input type='button' class='button button-primary' id='wpxapi_run_queue' value="<?php echo esc_html__( 'Run Queue' );?>"><br>
+			<div class="help-div"><?php echo esc_html__( 'Count of xAPI queue entries: ' , 'wpxapi' ) .'<span id="wpxapi_run_queue_count">' . esc_html( $count ) . '</span>'; ?></div>
 		<?php
 	}
 
@@ -504,13 +504,13 @@ class WP_Experience_API_Admin {
 	public static function wp_xapi_check_and_run_queue() {
 		check_ajax_referer( 'wp_ajax_run_queue', 'security' );
 		$finished = WP_Experience_API::wpxapi_run_the_queue();
-		$count = array('count' => 0, 'message' => 'The queue had issues and could not run.');
+		$count = array( 'count' => 0, 'message' => 'The queue had issues and could not run.' );
 		if ( $finished ) {
 			$count['count'] = WP_Experience_API::wpxapi_queue_is_not_empty( true );
 			$count['message'] = __( 'The queue ran successfully!' );
 		}
-		header('Content-Type: application/json');
-		echo json_encode( $count );
+		header( 'Content-Type: application/json' );
+		echo wp_json_encode( $count );
 
 		wp_die();
 	}
@@ -527,9 +527,9 @@ class WP_Experience_API_Admin {
 					jQuery(document).ready(function() {
 						var data = {
 							'action': 'run_queue',
-							'security': '<?php echo $nonce; ?>'
+							'security': '<?php echo esc_html( $nonce ); ?>'
 						};
-						var network_ajax_url = '<?php echo $url; ?>';
+						var network_ajax_url = '<?php echo esc_html( $url ); ?>';
 
 						jQuery( '#wpxapi_run_queue' ).on('click', function() {
 							jQuery.post(network_ajax_url, data, function(response) {

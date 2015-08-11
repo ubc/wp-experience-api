@@ -139,7 +139,7 @@ class WP_Experience_Queue_Object {
 		global $wpdb;
 		$table_name = self::get_queue_table_name();
 
-		$statement = serialize( $this->statement->asVersion( $this->lrs_info[WP_Experience_Queue_Object::LRS_VERSION] ) );
+		$statement = serialize( $this->statement->asVersion( $this->lrs_info[ WP_Experience_Queue_Object::LRS_VERSION ] ) );
 		$lrs_info = $this->lrs_info;
 		$ltt = $this->last_try_time;
 		$tries = $this->tries;

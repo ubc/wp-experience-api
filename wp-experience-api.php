@@ -189,10 +189,10 @@ class WP_Experience_API {
 			add_action( 'wpxapi_run_the_queue', array( __CLASS__, 'wpxapi_run_the_queue' ) );
 		}
 		*/
-		
+
 		/**
 		 * We need to remove legacy wp_cron 'wpxapi_run_queue'.
-		 * 
+		 *
 		 * Issue was that in 1.0.4, the plugin scheduled EVERY VISIT on EVERY SITE instead of
 		 * simulating cron where it is run only on one site and checked whether it's set or not (see above!)
 		 */
@@ -455,7 +455,7 @@ class WP_Experience_API {
 			);
 
 			//optional stuff - definition
-			if ( isset($data['object']['definition'] ) && is_array( $data['object']['definition'] ) ) {
+			if ( isset( $data['object']['definition'] ) && is_array( $data['object']['definition'] ) ) {
 				$activity_definition = new TinCan\ActivityDefinition( $data['object']['definition'] );
 				$object->setDefinition( $activity_definition );
 			} else if ( isset( $data['object']['name'] ) && isset( $data['object']['description'] ) ) {
@@ -607,7 +607,7 @@ class WP_Experience_API {
 		$count = WP_Experience_API::wpxapi_queue_is_not_empty( true );
 		if ( is_super_admin() && $count > 0 ) {
 			$message = __( 'The WP Experience API Queue is now not empty.  Current number of items: ', 'wpxapi' );
-			echo '<div class="error notice is-dismissible"><p>' . $message . $count .'</p></div>';
+			echo '<div class="error notice is-dismissible"><p>' . esc_html( $message . $count ) .'</p></div>';
 		}
 	}
 	/**
