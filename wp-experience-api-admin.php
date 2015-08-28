@@ -509,10 +509,7 @@ class WP_Experience_API_Admin {
 			$count['count'] = WP_Experience_API::wpxapi_queue_is_not_empty( true );
 			$count['message'] = __( 'The queue ran successfully!' );
 		}
-		header( 'Content-Type: application/json' );
-		echo wp_json_encode( $count );
-
-		wp_die();
+		wp_send_json( $count );
 	}
 
 	/**

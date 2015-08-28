@@ -3,7 +3,7 @@ Contributors: Devindra Payment, loongchan, ctlt-dev
 Tags:  xAPI, BadgeOS, Tincan, LRS, Experience API, Tin Can API
 Requires at least: WordPress 3.5
 Tested up to: 4.2.2
-Stable tag: 1.0.5 
+Stable tag: 1.0.6
 License: GNU AGPLv3
 License URI: http://www.gnu.org/licenses/agpl-3.0.html
 
@@ -74,6 +74,10 @@ Nothing yet.
 2. Site level administration page for users autorized to set the LRS at the site level.
 
 == Changelog ==
+
+= 1.0.6 =
+* tweaked syntax to fit with wordpress better (got codesniffer to work on my ide again!)
+* fixed bug where posts with empty body makes invalid statements. 
 
 = 1.0.5 =
 * tweaked the queueing system so that you click on a button on the admin pages to run the queue instead of trying to use wp-cron. 

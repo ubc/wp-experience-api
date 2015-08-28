@@ -1,0 +1,22 @@
+{
+	"name": 	"ubc/wp-experience-api",
+	"description": 	"",
+	"keywords": 	[ "wordpress", "plugin", "xapi" ],
+	"homepage": 	"http://github.com/ubc/",
+	"license": 		"GPLv3",
+
+	"authors": [
+		{
+			"name": 	"University of British Columbia",
+			"email": 	"web.admin@ubc.ca",
+			"homepage": "http://ctlt.ubc.ca/"
+		}
+	],
+
+	"type": "wordpress-plugin",
+
+	"require": {
+		"php": ">=5.4",
+		"composer/installers": "~1.0"
+	}
+}
