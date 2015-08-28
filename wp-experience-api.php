@@ -23,10 +23,12 @@ use TinCan\Activity;
 if ( ! defined( 'ABSPATH' ) ) {
 	die( '-1' );
 }
-
-require_once( 'wp-experience-api-configs.php' );
-require_once( 'includes/TinCanPHP/autoload.php' );
-require_once( 'wp-experience-api-queue-obj.php' );
+if ( ! defined( 'WPXAPI_PLUGIN_DIR' ) ) {
+	define( 'WPXAPI_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+}
+require_once( WPXAPI_PLUGIN_DIR . 'wp-experience-api-configs.php' );
+require_once( WPXAPI_PLUGIN_DIR . 'includes/TinCanPHP/autoload.php' );
+require_once( WPXAPI_PLUGIN_DIR . 'wp-experience-api-queue-obj.php' );
 
 class WP_Experience_API {
 
