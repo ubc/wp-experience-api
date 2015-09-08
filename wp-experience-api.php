@@ -5,7 +5,7 @@
  * Description: This plugin generates and sends various xAPI statements to the specified LRS
  * Tags: xAPI
  * Author: CTLT, Devindra Payment, loongchan
- * Version: 1.0
+ * Version: 1.0.1
  * Author URI: https://github.com/ubc
  * License: GNU AGPLv3
  * License URI: http://www.gnu.org/licenses/agpl-3.0.html
@@ -150,11 +150,20 @@ class WP_Experience_API {
 	 * @return void
 	 */
 	public static function wpxapi_on_activate() {
+
+		// We only want to check for this if an option hasn't been set
+		$current_version 	= get_site_option( 'wpxapi_db_installed' );
+		$plugin_ver 		= esc_html( WP_XAPI_PLUGIN_VERSION );
+
+		if ( $plugin_ver >= $current_version ) {
+			return;
+		}
+
 		global $wpdb;
 
 		//use base_prefix so it will be on global regardless of mu or single site
 		$table_name = WP_Experience_Queue_Object::get_queue_table_name();
-		if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table_name}'" ) != $table_name ) {
+		if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table_name}'" ) !== $table_name ) {
 			if ( ! empty( $wpdb->charset ) ) {
 				$charset_collate = "DEFAULT CHARACTER SET {$wpdb->charset}";
 			}
@@ -173,6 +182,8 @@ class WP_Experience_API {
 
 			require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 			dbDelta( $sql );
+			$plugin_ver = esc_html( WP_XAPI_PLUGIN_VERSION );
+			update_site_option( 'wpxapi_db_installed', $plugin_ver );
 		}
 
 		/**
