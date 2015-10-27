@@ -95,14 +95,25 @@ WP_Experience_API::register( 'earned_badges', array(
  * This trigger is for page views of various kinds
  */
 WP_Experience_API::register( 'page_views', array(
-	'hooks' => array( 'wp' ), //yes, kinda broad, but if singular, should be ok
+	'hooks' => array( 'shutdown' ), //yes, kinda broad, but if singular, should be ok. Was 'wp'
 	'process' => function( $hook, $args ) {
-		global $post;
 
-		//only track front end for now.
-		if ( is_admin() ) {
+		// By default, we don't track AJAX requests within this hook
+		$process_ajax_loads = apply_filters( 'wpxapi_ajax_page_views', false, $hook, $args );
+
+		if ( ! $process_ajax_loads && defined( 'DOING_AJAX' ) && DOING_AJAX ) {
 			return false;
 		}
+
+		// Should we track Admin requests?
+		$process_admin_requests = apply_filters( 'wpxapi_admin_page_views', false, $hook, $args );
+
+		//only track front end for now.
+		if ( is_admin() && ! $process_admin_requests ) {
+			return false;
+		}
+
+		global $post;
 
 		$options = get_option( 'wpxapi_settings' );
 		if ( 3 == $options['wpxapi_pages'] ) {
