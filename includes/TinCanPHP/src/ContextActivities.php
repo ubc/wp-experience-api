@@ -17,9 +17,9 @@
 
 namespace TinCan;
 
-class ContextActivities implements VersionableInterface
+class ContextActivities implements VersionableInterface, ComparableInterface
 {
-    use ArraySetterTrait, FromJSONTrait, AsVersionTrait;
+    use ArraySetterTrait, FromJSONTrait, AsVersionTrait, SignatureComparisonTrait;
 
     protected $category = array();
     protected $parent = array();
@@ -31,21 +31,6 @@ class ContextActivities implements VersionableInterface
             $arg = func_get_arg(0);
 
             $this->_fromArray($arg);
-        }
-    }
-
-    private function _asVersion(array &$result, $version) {
-        foreach ($result as $property => $value) {
-            if (empty($value)) {
-                unset($result[$property]);
-            }
-            elseif (is_array($value)) {
-                $this->_asVersion($value, $version);
-                $result[$property] = $value;
-            }
-            elseif ($value instanceof VersionableInterface) {
-                $result[$property] = $value->asVersion($version);
-            }
         }
     }
 

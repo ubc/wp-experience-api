@@ -82,6 +82,7 @@ class WP_Experience_Queue_Object {
 
 		//query to get row!
 		$query = "SELECT * FROM {$table_name} ORDER BY id ASC limit 1";
+
 		$row = $wpdb->get_row( $query );
 
 		//check to see it returned something!

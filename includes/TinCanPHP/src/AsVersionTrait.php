@@ -34,10 +34,32 @@ trait AsVersionTrait
         $result = array();
 
         foreach (get_object_vars($this) as $property => $value) {
+            //
+            // skip properties that start with an underscore to allow
+            // storing information that isn't included in statement
+            // structure etc. (see Attachment.content for example)
+            //
+            if (strpos($property, '_') === 0) {
+                continue;
+            }
+
             if ($value instanceof VersionableInterface) {
                 $value = $value->asVersion($version);
             }
-            if (isset($value)) {
+            elseif (is_array($value) && !empty($value)) {
+                $tmp_value = array();
+                foreach ($value as $element) {
+                    if ($element instanceof VersionableInterface) {
+                        array_push($tmp_value, $element->asVersion($version));
+                    }
+                    else {
+                        array_push($tmp_value, $element);
+                    }
+                }
+                $value = $tmp_value;
+            }
+
+            if (isset($value) && (!is_array($value) || !empty($value))) {
                 $result[$property] = $value;
             }
         }

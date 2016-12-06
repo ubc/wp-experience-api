@@ -17,9 +17,9 @@
 
 namespace TinCan;
 
-class Result implements VersionableInterface
+class Result implements VersionableInterface, ComparableInterface
 {
-    use ArraySetterTrait, FromJSONTrait, AsVersionTrait;
+    use ArraySetterTrait, FromJSONTrait, AsVersionTrait, SignatureComparisonTrait;
 
     protected $score;
     protected $success;
@@ -37,6 +37,15 @@ class Result implements VersionableInterface
 
         if (! isset($this->extensions)) {
             $this->setExtensions(array());
+        }
+    }
+
+    private function _asVersion(&$result, $version) {
+        //
+        // empty string is an invalid duration
+        //
+        if (isset($result['duration']) && $result['duration'] == '') {
+            unset($result['duration']);
         }
     }
 

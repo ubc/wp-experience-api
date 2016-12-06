@@ -763,7 +763,6 @@ class WP_Experience_API {
 
 			$count = WP_Experience_API::wpxapi_queue_is_not_empty( true );
 			$i = 0; //counter
-
 			//sanity check JUST to make sure it can/will end the loop
 			if ( 0 >= $count ) {
 				return false;
@@ -794,7 +793,6 @@ class WP_Experience_API {
 					//not time to try yet, so skip trying.  next time cron runs, it should check this again.
 					continue;
 				}
-
 				//try sending the statement!
 				$lrs = self::setup_lrs( $queue_obj->lrs_info );
 				$response = $lrs->saveStatement( $queue_obj->statement );

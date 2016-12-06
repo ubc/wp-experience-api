@@ -15,10 +15,12 @@
     limitations under the License.
 */
 
+namespace TinCanTest;
+
 use TinCan\StatementRef;
 use TinCan\Util;
 
-class StatementRefTest extends PHPUnit_Framework_TestCase {
+class StatementRefTest extends \PHPUnit_Framework_TestCase {
     public function testInstantiation() {
         $obj = new StatementRef();
         $this->assertInstanceOf('TinCan\StatementRef', $obj);
@@ -49,12 +51,41 @@ class StatementRefTest extends PHPUnit_Framework_TestCase {
     // TODO: need to loop versions
     public function testAsVersion() {
         $args = [
-            'objectType' => 'StatementRef',
             'id' => Util::getUUID(),
         ];
-        $obj = new StatementRef($args);
+
+        $obj       = StatementRef::fromJSON(json_encode($args, JSON_UNESCAPED_SLASHES));
         $versioned = $obj->asVersion('1.0.0');
 
-        $this->assertEquals($versioned, $args, "version 1.0.0");
+        $args['objectType'] = 'StatementRef';
+
+        $this->assertEquals($versioned, $args, "serialized version matches corrected");
+    }
+
+    public function testAsVersionEmpty() {
+        $args = [];
+
+        $obj       = StatementRef::fromJSON(json_encode($args, JSON_UNESCAPED_SLASHES));
+        $versioned = $obj->asVersion('1.0.0');
+
+        $args['objectType'] = 'StatementRef';
+
+        $this->assertEquals($versioned, $args, "serialized version matches corrected");
+    }
+
+    public function testCompareWithSignature() {
+        $success = ['success' => true, 'reason' => null];
+        $failure = ['success' => false, 'reason' => null];
+
+        $id = Util::getUUID();
+        $obj = new StatementRef(['id' => $id]);
+        $sig = new StatementRef(['id' => $id]);
+
+        $this->assertSame($success, $obj->compareWithSignature($sig), 'id only: match');
+
+        $sig->setId(Util::getUUID());
+        $failure['reason'] = 'Comparison of id failed: value is not the same';
+
+        $this->assertSame($failure, $obj->compareWithSignature($sig), 'id only: mismatch');
     }
 }

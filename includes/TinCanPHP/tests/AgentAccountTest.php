@@ -15,9 +15,16 @@
     limitations under the License.
 */
 
+namespace TinCanTest;
+
 use TinCan\AgentAccount;
 
-class AgentAccountTest extends PHPUnit_Framework_TestCase {
+class AgentAccountTest extends \PHPUnit_Framework_TestCase {
+    use TestCompareWithSignatureTrait;
+
+    const HOMEPAGE = 'http://tincanapi.com';
+    const NAME = 'test';
+
     public function testInstantiation() {
         $obj = new AgentAccount();
         $this->assertInstanceOf('TinCan\AgentAccount', $obj);
@@ -39,23 +46,104 @@ class AgentAccountTest extends PHPUnit_Framework_TestCase {
 
     public function testName() {
         $obj  = new AgentAccount();
-        $name = 'test';
+        $name = COMMON_ACCT_NAME;
         $this->assertSame($obj, $obj->setName($name));
         $this->assertSame($name, $obj->getName());
     }
 
     public function testHomePage() {
         $obj      = new AgentAccount();
-        $homePage = 'http://tincanapi.com';
+        $homePage = COMMON_ACCT_HOMEPAGE;
         $this->assertSame($obj, $obj->setHomePage($homePage));
         $this->assertSame($homePage, $obj->getHomePage());
     }
 
     public function testAsVersion() {
-        $args      = ['name' => 'test', 'homePage' => 'http://tincanapi.com'];
-        $obj       = new AgentAccount($args);
-        $versioned = $obj->asVersion('test');
+        $args      = [
+            'name' => COMMON_ACCT_NAME,
+            'homePage' => COMMON_ACCT_HOMEPAGE
+        ];
 
-        $this->assertEquals($versioned, $args, "all properties: test");
+        $obj       = AgentAccount::fromJSON(json_encode($args, JSON_UNESCAPED_SLASHES));
+        $versioned = $obj->asVersion('1.0.0');
+
+        $this->assertEquals($versioned, $args, "serialized version matches original");
+    }
+
+    public function testAsVersionEmpty() {
+        $args = [];
+
+        $obj       = AgentAccount::fromJSON(json_encode($args, JSON_UNESCAPED_SLASHES));
+        $versioned = $obj->asVersion('1.0.0');
+
+        $this->assertEquals($versioned, $args, "serialized version matches original");
+    }
+
+    public function testAsVersionEmptyStrings() {
+        $args      = [
+            'name' => '',
+            'homePage' => ''
+        ];
+
+        $obj       = AgentAccount::fromJSON(json_encode($args, JSON_UNESCAPED_SLASHES));
+        $versioned = $obj->asVersion('1.0.0');
+
+        $this->assertEquals($versioned, $args, "serialized version matches original");
+    }
+
+    public function testCompareWithSignature() {
+        $full = [
+            'homePage' => COMMON_ACCT_HOMEPAGE,
+            'name'     => COMMON_ACCT_NAME
+        ];
+        $cases = [
+            [
+                'description' => 'all null',
+                'objArgs'     => []
+            ],
+            [
+                'description' => 'homePage',
+                'objArgs'     => ['homePage' => COMMON_ACCT_HOMEPAGE]
+            ],
+            [
+                'description' => 'name',
+                'objArgs'     => ['name' => COMMON_ACCT_NAME]
+            ],
+            [
+                'description' => 'all',
+                'objArgs'     => $full
+            ],
+            [
+                'description' => 'homepage only: mismatch',
+                'objArgs'     => ['homePage' => COMMON_ACCT_HOMEPAGE],
+                'sigArgs'     => ['homePage' => COMMON_ACCT_HOMEPAGE . '/invalid'],
+                'reason'      => 'Comparison of homePage failed: value is not the same'
+            ],
+            [
+                'description' => 'name only: mismatch',
+                'objArgs'     => ['name' => COMMON_ACCT_NAME],
+                'sigArgs'     => ['name' => 'diff'],
+                'reason'      => 'Comparison of name failed: value is not the same'
+            ],
+            [
+                'description' => 'full: homePage mismatch',
+                'objArgs'     => $full,
+                'sigArgs'     => array_replace($full, ['homePage' => COMMON_ACCT_HOMEPAGE . '/invalid']),
+                'reason'      => 'Comparison of homePage failed: value is not the same'
+            ],
+            [
+                'description' => 'full: name mismatch',
+                'objArgs'     => $full,
+                'sigArgs'     => array_replace($full, ['name' => 'diff']),
+                'reason'      => 'Comparison of name failed: value is not the same'
+            ],
+            [
+                'description' => 'full: both mismatch',
+                'objArgs'     => $full,
+                'sigArgs'     => ['homePage' => COMMON_ACCT_HOMEPAGE . '/invalid', 'name' => 'diff'],
+                'reason'      => 'Comparison of name failed: value is not the same'
+            ]
+        ];
+        $this->runSignatureCases("TinCan\AgentAccount", $cases);
     }
 }

@@ -19,9 +19,9 @@ namespace TinCan;
 
 use InvalidArgumentException;
 
-class Context implements VersionableInterface
+class Context implements VersionableInterface, ComparableInterface
 {
-    use ArraySetterTrait, FromJSONTrait, AsVersionTrait;
+    use ArraySetterTrait, FromJSONTrait, AsVersionTrait, SignatureComparisonTrait;
 
     protected $registration;
     protected $instructor;
@@ -129,15 +129,4 @@ class Context implements VersionableInterface
         return $this;
     }
     public function getExtensions() { return $this->extensions; }
-
-    private function _asVersion(array &$result, $version) {
-        foreach ($result as $property => $value) {
-            if (! isset($value)) {
-                unset($result[$property]);
-            }
-            elseif ($value instanceof VersionableInterface) {
-                $result[$property] = $value->asVersion($version);
-            }
-        }
-    }
 }

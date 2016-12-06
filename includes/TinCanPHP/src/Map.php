@@ -32,7 +32,7 @@ abstract class Map implements VersionableInterface
         }
     }
 
-    public function asVersion($version) {
+    public function asVersion($version = null) {
         if (! $this->isEmpty()) {
             return $this->_map;
         }
@@ -55,7 +55,7 @@ abstract class Map implements VersionableInterface
                 return $this->_unset($args[0]);
             break;
             default:
-                throw new BadMethodCallException(__CLASS__ . "::$func() does not exist");
+                throw new \BadMethodCallException(get_class($this) . "::$func() does not exist");
         }
     }
 }
