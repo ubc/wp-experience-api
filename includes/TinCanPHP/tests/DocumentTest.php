@@ -1,6 +1,6 @@
 <?php
 /*
-    Copyright 2014 Rustici Software
+    Copyright 2016 Rustici Software
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -15,12 +15,20 @@
     limitations under the License.
 */
 
-//
-// Some constants used throughout the various test cases
-//
-define('COMMON_EMAIL',       'tincanphp@tincanapi.com');
-define('COMMON_GROUP_EMAIL', 'tincanphp+group@tincanapi.com');
-define('COMMON_MBOX',        'mailto:tincanphp@tincanapi.com');
-define('COMMON_GROUP_MBOX',  'mailto:tincanphp+group@tincanapi.com');
-define('COMMON_VERB_ID',     'http://adlnet.gov/expapi/verbs/experienced');
-define('COMMON_ACTIVITY_ID', 'http://tincanapi.com/TinCanPHP/Test/Activity');
+namespace TinCanTest;
+
+use TinCan\Document;
+
+class StubDocument extends Document {}
+
+class DocumentTest extends \PHPUnit_Framework_TestCase {
+    public function testExceptionOnInvalidDateTime() {
+        $this->setExpectedException(
+            "InvalidArgumentException",
+            'type of arg1 must be string or DateTime'
+        );
+
+        $obj = new StubDocument();
+        $obj->setTimestamp(1);
+    }
+}

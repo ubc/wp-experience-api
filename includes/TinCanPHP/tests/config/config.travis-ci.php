@@ -8,3 +8,8 @@ $LRSs = [
         'version'  => '1.0.1'
     ]
 ];
+$KEYs = [
+    'public'   => getenv('TRAVIS_BUILD_DIR') . '/tests/keys/travis/cacert.pem',
+    'private'  => getenv('TRAVIS_BUILD_DIR') . '/tests/keys/travis/privkey.pem',
+    'password' => 'travis'
+];
