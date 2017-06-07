@@ -5,7 +5,7 @@
  * Description: This plugin generates and sends various xAPI statements to the specified LRS
  * Tags: xAPI
  * Author: CTLT, Devindra Payment, loongchan
- * Version: 1.0.2
+ * Version: 1.0.3
  * Author URI: https://github.com/ubc
  * License: GNU AGPLv3
  * License URI: http://www.gnu.org/licenses/agpl-3.0.html
