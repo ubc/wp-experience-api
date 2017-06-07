@@ -694,7 +694,7 @@ class WP_Experience_API {
 
 		$page_url .= '://';
 
-		if ( '80' != $_SERVER['SERVER_PORT'] ) {
+		if (  isset( $_SERVER['SERVER_PORT'] ) && '443'  !== $_SERVER['SERVER_PORT'] && ''  !== $_SERVER['SERVER_PORT'] && '80' !== $_SERVER['SERVER_PORT']  ) {
 			$page_url .= $_SERVER['SERVER_NAME'] . ':' . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'];
 		} else {
 			$page_url .= $_SERVER['SERVER_NAME'] . $_SERVER['REQUEST_URI'];
