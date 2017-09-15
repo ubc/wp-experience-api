@@ -2,8 +2,8 @@
 Contributors: Devindra Payment, loongchan, ctlt-dev
 Tags:  xAPI, BadgeOS, Tincan, LRS, Experience API, Tin Can API
 Requires at least: WordPress 3.5
-Tested up to: 4.2.2
-Stable tag: 1.0.6
+Tested up to: 4.8.1
+Stable tag: 1.0.7
 License: GNU AGPLv3
 License URI: http://www.gnu.org/licenses/agpl-3.0.html
 

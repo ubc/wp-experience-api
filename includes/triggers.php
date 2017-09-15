@@ -4,8 +4,105 @@
  */
 
 /**
+ * Click Link tracking
+ **/
+
+function wpxapi_enqueue_script( $hook ) { 
+	if( is_user_logged_in() ) {
+		$wpxapi_uid = wp_get_current_user();
+		$wpxapi_uid = base64_encode( $wpxapi_uid->ID );
+		$wpxapi_blogid = get_current_blog_id();
+		$wpxapi_blogid = base64_encode( $wpxapi_blogid );
+		wp_enqueue_script( 'wpxapi_ajax_script', plugins_url( '/js/wpxapi_link_click_log.js', dirname(__FILE__) ), array('jquery') );
+		wp_localize_script( 'wpxapi_ajax_script', 'wpxapi_ajax_object', array( 'ajax_url' => admin_url( 'admin-ajax.php' ),  'wpxapi_uid' => $wpxapi_uid, 'wpxapi_blogid' => $wpxapi_blogid ) );
+	}
+}
+
+add_action( 'wp_enqueue_scripts', 'wpxapi_enqueue_script' );
+add_action( 'wp_ajax_xapiclicklog_action', 'xapiclicklog_action' );
+add_action( 'wp_ajax_nopriv_xapiclicklog_action', 'xapiclicklog_action' );
+
+function xapiclicklog_action() {
+	do_action( 'xapiclicklog_action_fire' );
+}
+
+WP_Experience_API::register( 'wpxapi_linkclick_track_log', array(
+	        'hooks' => array( 'xapiclicklog_action_fire' ),
+		'process' => function( $hook, $args ) {
+
+		$wpxapi_click_url_requested =  urldecode( $_POST['wpxapi_click_url_requested'] );
+		$wpxapi_click_url_requested = sanitize_text_field( $wpxapi_click_url_requested );
+
+		$wpxapi_click_referrer_location   =  urldecode( $_POST['wpxapi_click_referrer_location'] );
+		$wpxapi_click_referrer_location = sanitize_text_field( $wpxapi_click_referrer_location );
+		
+		$wpxapi_uid = base64_decode( $_POST['wpxapi_uid'] );
+		$wpxapi_uid = intval( $wpxapi_uid );
+		if ( ! $wpxapi_uid ) {
+  			$wpxapi_uid = '';
+		}
+	
+		$wpxapi_blogid = base64_decode( $_POST['wpxapi_blogid'] ); 	
+		$wpxapi_blogid = intval( $wpxapi_blogid );
+		if ( ! $wpxapi_blogid ) { 
+                        $wpxapi_blogid = '';
+                } 
+
+		$request_site_url = get_site_url( $wpxapi_blogid );
+		
+		$statement = null;
+		
+		$statement = array(
+			'verb' => array(
+				'id' => 'http://adlnet.gov/expapi/verbs/interacted',
+				'display' => array( 'en-US' => 'interacted' ),
+			),
+
+			'object' => array(
+				'id' => $wpxapi_click_url_requested,
+				'definition' => array(
+					'name' => array(
+						'en-US' => $wpxapi_click_url_requested,
+					),
+					'description' => array(
+						'en-US' => 'interacted',
+					),																													  'type' => 'http://adlnet.gov/expapi/activities/link',																)
+				),
+			'context_raw' => array(
+						'extensions' => array(
+								'http://id.tincanapi.com/extension/browser-info' => array( 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ),
+								'http://nextsoftwaresolutions.com/xapi/extensions/referer' => $_SERVER['HTTP_REFERER'],
+							),
+							'platform' => defined( 'CTLT_PLATFORM' ) ? constant( 'CTLT_PLATFORM' ) : 'unknown'
+						),
+						'timestamp_raw' => date( 'c' )
+				);
+		
+		$user_obj = get_user_by( 'ID', $wpxapi_uid );
+		$user = $user_obj->ID;
+		
+		if ( empty( $user ) ) {
+			if ( 1 == $options['wpxapi_guest'] ) {
+				$user = array(
+					'objectType' => 'Agent',
+					'name' => 'Guest ' . $_SERVER['REMOTE_ADDR'],
+					'mbox' => 'mailto:guest-' . $_SERVER['REMOTE_ADDR'] . '@' . preg_replace( '/http(s)?:\/\//', '', get_bloginfo( 'url' ) ),													    );
+				  $statement = array_merge( $statement, array( 'actor_raw' => $user ) );
+			 } else {
+				return false;
+			 }
+		  } else {
+			  $statement = array_merge( $statement, array( 'user' => $user ) );
+		  }
+
+		return $statement;
+	  }
+));
+
+/**
  * This is for badge earning events
  */
+
 WP_Experience_API::register( 'earned_badges', array(
 	'hooks' => array( 'badgeos_award_achievement' ),
 	'num_args' => array( 'badgeos_award_achievement' => 2 ),
@@ -94,6 +191,8 @@ WP_Experience_API::register( 'earned_badges', array(
 /**
  * This trigger is for page views of various kinds
  */
+
+
 WP_Experience_API::register( 'page_views', array(
 	'hooks' => array( 'shutdown' ), //yes, kinda broad, but if singular, should be ok. Was 'wp'
 	'process' => function( $hook, $args ) {
