@@ -155,7 +155,7 @@ class WP_Experience_API {
 		$current_version 	= get_site_option( 'wpxapi_db_installed' );
 		$plugin_ver 		= esc_html( WP_XAPI_PLUGIN_VERSION );
 
-		if ( $plugin_ver >= $current_version ) {
+		if ( $plugin_ver === $current_version ) {
 			return;
 		}
 
@@ -163,28 +163,26 @@ class WP_Experience_API {
 
 		//use base_prefix so it will be on global regardless of mu or single site
 		$table_name = WP_Experience_Queue_Object::get_queue_table_name();
-		if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table_name}'" ) !== $table_name ) {
-			if ( ! empty( $wpdb->charset ) ) {
-				$charset_collate = "DEFAULT CHARACTER SET {$wpdb->charset}";
-			}
-			if ( ! empty( $wpdb->collate ) ) {
-				$charset_collate .= " COLLATE {$wpdb->collate}";
-			}
-			$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
-				id bigint NOT NULL AUTO_INCREMENT,
-				tries tinyint UNSIGNED NOT NULL DEFAULT '1',
-				last_try_time datetime,
-				statement text NOT NULL,
-				lrs_info tinyint NOT NULL,
-				created timestamp DEFAULT CURRENT_TIMESTAMP,
-				PRIMARY KEY (id)
-			) {$charset_collate};";
-
-			require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-			dbDelta( $sql );
-			$plugin_ver = esc_html( WP_XAPI_PLUGIN_VERSION );
-			update_site_option( 'wpxapi_db_installed', $plugin_ver );
+		if ( ! empty( $wpdb->charset ) ) {
+			$charset_collate = "DEFAULT CHARACTER SET {$wpdb->charset}";
 		}
+		if ( ! empty( $wpdb->collate ) ) {
+			$charset_collate .= " COLLATE {$wpdb->collate}";
+		}
+		$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
+			id bigint NOT NULL AUTO_INCREMENT,
+			tries tinyint UNSIGNED NOT NULL DEFAULT '1',
+			last_try_time datetime,
+			statement text NOT NULL,
+			lrs_info tinyint NOT NULL,
+			created timestamp DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (id)
+		) {$charset_collate};";
+
+		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+		dbDelta( $sql );
+		$plugin_ver = esc_html( WP_XAPI_PLUGIN_VERSION );
+		update_site_option( 'wpxapi_db_installed', $plugin_ver );
 
 		/**
 		 * DEPRECATED!!!!  Now we use a button to run the queue!  much more control...  we also added admin notices when queue is not empty.
